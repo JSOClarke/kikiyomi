@@ -1,13 +1,18 @@
 # kikiyomi (Fork)
-![player_screenshot](https://github.com/user-attachments/assets/6cd3ef88-8f87-4b43-a946-38864b3d436f)
+![kikiyomi preview](capture.png)
 
 **kikiyomi** is a powerful, single-file audiobook player designed specifically for Japanese language immersion. This fork adds deep integration for Anki, Yomitan, and live translation to the original experience.
+
+### [📺 Video Demo (Anki Integration & Word Nav)](demo.webm)
 
 ## 🚀 Added Features (v1.3.2)
 
 - **Anki Integration:** Attach high-quality audio snippets and book cover art directly to your most recent Anki card with a single tap.
+  ![Anki Card Example](anki_preview.png)
 - **Word Navigation Mode:** Move word-by-word through subtitles to trigger **Yomitan** lookups without using a mouse. Perfect for couch immersion.
+  ![Word Nav Example](word_nav_preview.png)
 - **Live Translation:** Instant translation of subtitle lines via Google Translate. Free, fast, and cached for offline reading.
+  ![Translation Example](translation_preview.png)
 - **Improved UI:** Refined layouts, inline controls (Anki, Star, Translate, Copy), and dynamic library cards.
 - **Full Gamepad Support:** Fully playable via PS4, Xbox, or standard HID controllers.
 
@@ -23,31 +28,31 @@
 ### Normal Mode
 | Action | Keyboard | Gamepad |
 | :--- | :--- | :--- |
-| Play / Pause | Space / W | Button A (0) |
+| Play / Pause | Space / W | A / Cross (0) |
 | Next / Prev Line | D / A | D-pad R / L |
 | Replay Line | S | D-pad Down |
-| Next / Prev Chapter| E / Q | R1 / L1 |
-| **Anki Integration** | **C** | **Options / Start (9)** |
-| **Translate Line** | **T** | **Button X (2)** |
-| Toggle Focus Mode | F | Button Y (3) |
-| **Enter Word Nav** | **N** | **L2 (6)** |
+| Next / Prev Chapter| E / Q | R1 / L1 (RB / LB) |
+| **Anki Integration** | **C** | **Menu / Options (9)** |
+| **Translate Line** | **T** | **X / Square (2)** |
+| Toggle Focus Mode | F | Y / Triangle (3) |
+| **Enter Word Nav** | **N** | **LT / L2 (6)** |
 
 ### Word Navigation Mode
 | Action | Keyboard | Gamepad |
 | :--- | :--- | :--- |
 | Move Word L / R | B / M | D-pad L / R |
-| **Trigger Yomitan** | **Enter / Space**| **Button A (0)** |
-| **Anki Integration** | **C** | **Options / Start (9)** |
-| **Translate Line** | **T** | **Button X (2)** |
-| Exit Word Nav | N | L2 (6) |
+| **Trigger Yomitan** | **Enter / Space**| **A / Cross (0)** |
+| **Anki Integration** | **C** | **Menu / Options (9)** |
+| **Translate Line** | **T** | **X / Square (2)** |
+| Exit Word Nav | N | LT / L2 (6) |
 
 ### External Macros (Recommended for full immersion)
 For actions that require direct interaction with browser extensions (like Yomitan), it is recommended to use external software like **DS4Windows** to map gamepad buttons to keyboard shortcuts:
 
-| Action | Keyboard Shortcut | Recommended Gamepad Mapping (DS4Windows) |
+| Action | Keyboard Shortcut | Recommended Gamepad Mapping |
 | :--- | :--- | :--- |
-| **Yomitan: Add Card** | `Alt + E` | **Triangle (3)** |
-| **Yomitan: Close** | `Esc` | **Circle (1)** |
+| **Yomitan: Add Card** | `Alt + E` | **Y / Triangle (3)** |
+| **Yomitan: Close** | `Esc` | **B / Circle (1)** |
 
 *Note: Since these buttons are handled via DS4Windows, they will trigger Yomitan's internal shortcuts directly. You can download a pre-configured profile here: [kikiyomi_ds4.xml](https://github.com/JSOClarke/my_configs/blob/main/kikiyomi_ds4.xml).*
 

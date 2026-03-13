@@ -108,7 +108,7 @@
         .bm-item { padding: 12px; border-bottom: 1px solid var(--border); cursor: pointer; display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: start; }
         .bm-item:hover { background: var(--surface-hover); }
         .bm-content { display: flex; flex-direction: column; gap: 5px; overflow: hidden; }
-        .bm-text { color: var(--text); font-size: 0.95rem; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .bm-text { color: var(--text); font-size: 0.95rem; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         .bm-meta { font-size: 0.75rem; color: var(--text-muted); display: flex; justify-content: space-between; gap: 10px; }
         .bm-book-title { color: var(--primary); font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
         .bm-del-btn { color: var(--text-muted); background: transparent; border: none; font-size: 1.2rem; cursor: pointer; padding: 5px 10px; }
@@ -324,13 +324,19 @@
         #seek-markers { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; }
         .chap-marker { position: absolute; width: 2px; height: 6px; background: rgba(255,255,255,0.4); top: 5px; transform: translateX(-50%); }
     
-        input[type=range] { width: 100%; cursor: pointer; height: 16px; background: transparent; -webkit-appearance: none; position: relative; z-index: 4; margin: 0; }
+        input[type=range] { width: 100%; cursor: pointer; height: 16px; background: transparent; -webkit-appearance: none; appearance: none; position: relative; z-index: 4; margin: 0; }
         input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: var(--text-active); margin-top: -6px; box-shadow: 0 1px 3px rgba(0,0,0,0.5); border: 1px solid var(--border); }
         input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; background: transparent; }
         input[type=range]::-moz-range-thumb { height: 16px; width: 16px; border-radius: 50%; background: var(--text-active); border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.5); }
         input[type=range]::-moz-range-track { width: 100%; height: 4px; background: transparent; }
     
-        .buttons-row { display: flex; justify-content: center; gap: 25px; align-items: center; }
+        .buttons-row { position: relative; display: flex; justify-content: center; align-items: center; width: 100%; }
+        .buttons-group { display: flex; justify-content: center; gap: 25px; align-items: center; }
+        .volume-row { display: flex; align-items: center; gap: 10px; width: 150px; position: absolute; right: 0; }
+        .v-icon { width: 20px; height: 20px; color: var(--text-muted); opacity: 0.7; }
+        #volume-slider { flex: 1; height: 4px; background: var(--border); border-radius: 2px; outline: none; -webkit-appearance: none; appearance: none; cursor: pointer; }
+        #volume-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; background: var(--text-active); border-radius: 50%; border: none; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+        #volume-slider::-moz-range-thumb { width: 12px; height: 12px; background: var(--text-active); border-radius: 50%; border: none; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
         .round-btn { width: 50px; height: 50px; border-radius: 50%; border: none; background: #2a2a2a; color: #ddd; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.1s; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
         .round-btn:active { transform: scale(0.95); background: #444; }
         .round-btn.main { width: 68px; height: 68px; background: #e0e0e0; color: #121212; font-size: 1.8rem; box-shadow: 0 4px 10px rgba(255,255,255,0.1); }
@@ -592,22 +598,22 @@
 
             <div class="setting-section-title" style="margin-bottom:8px;">Normal Mode</div>
             <table class="key-table">
-                <tr><td>Play / Pause</td><td>Space / W &nbsp;·&nbsp; GP: A</td></tr>
+                <tr><td>Play / Pause</td><td>Space / W &nbsp;·&nbsp; GP: A / Cross</td></tr>
                 <tr><td>Prev / Next Line</td><td>A / D &nbsp;·&nbsp; GP: D-pad ←/→</td></tr>
                 <tr><td>Replay Line</td><td>S / ↓ &nbsp;·&nbsp; GP: D-pad ↓</td></tr>
-                <tr><td>Prev / Next Chapter</td><td>Q / E &nbsp;·&nbsp; GP: L1 / R1</td></tr>
-                <tr><td>Toggle Focus Mode</td><td>F &nbsp;·&nbsp; GP: Y (△)</td></tr>
-                <tr><td>Anki Enhancement</td><td>C &nbsp;·&nbsp; GP: Options/Start</td></tr>
-                <tr><td>Translate Line</td><td>T &nbsp;·&nbsp; GP: X (□)</td></tr>
-                <tr><td>Enter Word Nav Mode</td><td>N &nbsp;·&nbsp; GP: L2</td></tr>
+                <tr><td>Prev / Next Chapter</td><td>Q / E &nbsp;·&nbsp; GP: L1 / R1 (LB/RB)</td></tr>
+                <tr><td>Toggle Focus Mode</td><td>F &nbsp;·&nbsp; GP: Y / Triangle</td></tr>
+                <tr><td>Anki Integration</td><td>C &nbsp;·&nbsp; GP: Options / Menu</td></tr>
+                <tr><td>Translate Line</td><td>T &nbsp;·&nbsp; GP: X / Square</td></tr>
+                <tr><td>Enter Word Nav Mode</td><td>N &nbsp;·&nbsp; GP: L2 / LT</td></tr>
             </table>
 
             <div class="setting-section-title" style="margin-top:16px; margin-bottom:8px;">Word Navigation Mode <span style="font-weight:normal; font-size:0.8rem; color:var(--text-muted);">(toggle with N / L2)</span></div>
             <table class="key-table">
                 <tr><td>Move Word Left / Right</td><td>B / M &nbsp;·&nbsp; GP: D-pad ←/→</td></tr>
-                <tr><td>Open Yomitan on Word</td><td>Enter / Space &nbsp;·&nbsp; GP: A</td></tr>
-                <tr><td>Anki Enhancement</td><td>C &nbsp;·&nbsp; GP: Options/Start</td></tr>
-                <tr><td>Translate Line</td><td>T &nbsp;·&nbsp; GP: X (□)</td></tr>
+                <tr><td>Open Yomitan on Word</td><td>Enter / Space &nbsp;·&nbsp; GP: A / Cross</td></tr>
+                <tr><td>Anki Integration</td><td>C &nbsp;·&nbsp; GP: Options / Menu</td></tr>
+                <tr><td>Translate Line</td><td>T &nbsp;·&nbsp; GP: X / Square</td></tr>
             </table>
 
             <div class="setting-section-title" style="margin-top:16px; margin-bottom:8px;">Focus Mode</div>
@@ -678,10 +684,18 @@
                 <span id="t-total">00:00</span>
             </div>
             <div class="buttons-row">
-                <button class="round-btn" onclick="Player.prevSub()" title="Prev Line (A)">I&lt;</button>
-                <button class="round-btn" onclick="Player.replaySub()" title="Replay Line (S)">⟲</button>
-                <button class="round-btn main" id="btn-play" onclick="Player.togglePlay()" title="Play/Pause (Space)">▶</button>
-                <button class="round-btn" onclick="Player.nextSub()" title="Next Line (D)">&gt;I</button>
+                <div class="buttons-group">
+                    <button class="round-btn" onclick="Player.prevSub()" title="Prev Line (A)">I&lt;</button>
+                    <button class="round-btn" onclick="Player.replaySub()" title="Replay Line (S)">⟲</button>
+                    <button class="round-btn main" id="btn-play" onclick="Player.togglePlay()" title="Play/Pause (Space)">▶</button>
+                    <button class="round-btn" onclick="Player.nextSub()" title="Next Line (D)">&gt;I</button>
+                </div>
+                <div class="volume-row">
+                    <svg class="v-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+                    </svg>
+                    <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="1" oninput="Player.setVolume(this.value)">
+                </div>
             </div>
         </div>
     </div>
@@ -1123,7 +1137,7 @@
         words: [], activeWordIndex: 0, navigationActive: false,
         activeCoverFilename: null, // Cached Anki media filename for the current book's cover
         sessionStartTime: null, // To track time spent in current session
-        settings: { font: '', size: 36, fillGap: true, bold: false, focusWidth: 90, activeScale: 1.05, ankiField: 'Sentence Audio', ankiPictureField: 'Picture', ankiAddCover: true, showSubProgress: true, showDebug: false, targetLang: 'en' },
+        settings: { font: '', size: 36, fillGap: true, bold: false, focusWidth: 90, activeScale: 1.05, ankiField: 'Sentence Audio', ankiPictureField: 'Picture', ankiAddCover: true, showSubProgress: true, showDebug: false, targetLang: 'en', volume: 1.0 },
         showToast(message, type = 'success', duration = 3000) {
             const toast = document.getElementById('toast');
             toast.textContent = message;
@@ -1379,6 +1393,7 @@
             this.settings.showSubProgress = localStorage.getItem('ky_sub_progress') !== "false";
             this.settings.showDebug = localStorage.getItem('ky_debug') === "true";
             this.settings.targetLang = localStorage.getItem('ky_lang') || "en";
+            this.settings.volume = parseFloat(localStorage.getItem('ky_volume') || "1");
     
             document.getElementById('opt-theme').value = this.settings.theme;
             document.getElementById('opt-font').value = this.settings.font;
@@ -1393,6 +1408,8 @@
             document.getElementById('opt-sub-progress').checked = this.settings.showSubProgress;
             document.getElementById('opt-debug').checked = this.settings.showDebug;
             document.getElementById('opt-lang').value = this.settings.targetLang;
+            const volSlider = document.getElementById('volume-slider');
+            if (volSlider) volSlider.value = this.settings.volume;
             this.applySettings(true);
         },
         applySettings(isLoad=false) {
@@ -1425,6 +1442,7 @@
                 localStorage.setItem('ky_sub_progress', this.settings.showSubProgress);
                 localStorage.setItem('ky_debug', this.settings.showDebug);
                 localStorage.setItem('ky_lang', this.settings.targetLang);
+                localStorage.setItem('ky_volume', this.settings.volume);
 
                 if (langChanged && Player.subs) {
                     Player.subs.forEach((s, idx) => {
@@ -1450,7 +1468,10 @@
             const debugEl = document.getElementById('input-debug');
             if (debugEl) debugEl.style.display = this.settings.showDebug ? 'block' : 'none';
             
-            if (Player.meta) Player.syncSub(); 
+            if (Player.meta) {
+                Player.audio.volume = this.settings.volume;
+                Player.syncSub(); 
+            }
         },
         toggleModal(id) { document.getElementById(id).classList.toggle('hidden'); },
         async renderLibrary() {
@@ -1906,6 +1927,7 @@
             
             this.elTitle.textContent = meta.title;
             this.audio.src = URL.createObjectURL(blob);
+            this.audio.volume = App.settings.volume;
             this.audio.currentTime = seekTo !== null ? seekTo : (meta.progress || 0);
             
             this.renderSubs(); this.renderChapters();
@@ -1931,6 +1953,11 @@
                 this.save(); 
                 if (this.animId) cancelAnimationFrame(this.animId);
             };
+        },
+        setVolume(val) {
+            this.audio.volume = val;
+            App.settings.volume = val;
+            localStorage.setItem('ky_volume', val);
         },
         renderSubs() {
             this.elSubList.innerHTML = '';
