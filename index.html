@@ -523,7 +523,6 @@
         </div>
         
         <div class="drop-zone" id="drop-zone">
-            <div style="font-size:2rem; opacity:0.8;">🎧</div>
             <div style="text-align:left;">
                 <div style="font-weight:bold; color:#e0e0e0;">Drop Audio & Subtitles here</div>
                 <div style="color:#888; font-size:0.85rem; margin-top:3px;">or click to browse files</div>
@@ -545,12 +544,12 @@
                 <span id="nav-indicator" class="nav-badge hidden">WORD NAV</span>
             </div>
             <div style="display:flex; align-items: center; z-index: 2;">
-                <button class="btn" onclick="App.showStats()" style="margin-right:5px" title="Statistics">📊 Stats</button>
+                <button class="btn" onclick="App.showStats()" style="margin-right:5px" title="Statistics">Stats</button>
                 <button class="btn" onclick="App.showBookmarks()" style="margin-right:5px">★</button>
                 <button class="btn" onclick="App.toggleChapters()" style="margin-right:5px">Chapters</button>
                 <button class="btn" onclick="App.toggleFocusMode()" style="margin-right:5px">Focus</button>
-                <button class="icon-btn" onclick="App.toggleModal('modal-settings')" title="Settings">⚙</button>
-                <button class="icon-btn" onclick="App.toggleModal('modal-help')" title="Controls">?</button>
+                <button class="btn" onclick="App.toggleModal('modal-settings')" style="margin-right:5px">Settings</button>
+                <button class="btn" onclick="App.toggleModal('modal-help')">Help</button>
             </div>
         </header>
     
@@ -1151,7 +1150,7 @@
                                 );
                                 if (storedName) {
                                     App.activeCoverFilename = storedName;
-                                    msg = "✅ Audio & Cover added";
+                                    msg = "Audio & Cover added";
                                 }
                             } catch (e) {
                                 console.warn("Cover attachment failed:", e);
@@ -1162,16 +1161,16 @@
                         App.showToast(msg, 'success');
                     } else {
                         btnElement.style.color = 'red';
-                        App.showToast('❌ Failed to update card fields', 'error');
+                        App.showToast('Failed to update card fields', 'error');
                     }
                 } else {
                     btnElement.style.color = 'orange';
-                    App.showToast('⚠️ No recent Anki card found', 'error');
+                    App.showToast('No recent Anki card found', 'error');
                 }
             }).catch(e => {
                 console.error("Audio extraction failed:", e);
                 btnElement.style.color = 'red';
-                App.showToast('❌ Audio extraction error', 'error');
+                App.showToast('Audio extraction error', 'error');
             }).finally(() => {
                 btnElement.classList.remove('loading');
                 setTimeout(() => btnElement.style.color = originalColor, 2000);
@@ -1281,9 +1280,13 @@
                 if (isActive && isCached) badges += '<span class="badge playing">Now Playing</span> ';
                 else if (book.handle) badges += '<span class="badge linked">Linked</span> ';
                 
-                const pct = book.duration > 0 ? (book.progress / book.duration * 100).toFixed(1) : 0;
+                const durPct = book.duration > 0 ? (book.progress / book.duration * 100).toFixed(1) : 0;
                 
-                let imgHtml = '<div class="lib-cover">💿</div>';
+                const totalWords = book.totalWords || 0;
+                const readWords = book.readWords || 0;
+                const wordStats = totalWords > 0 ? `<div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">${readWords.toLocaleString()} / ${totalWords.toLocaleString()} words</div>` : '';
+
+                let imgHtml = '<div class="lib-cover" style="display:flex; align-items:center; justify-content:center; background:var(--surface); border:1px solid var(--border); font-size:0.7rem; color:var(--text-muted);">NO COVER</div>';
                 if (book.cover && book.cover.blob) {
                     const url = URL.createObjectURL(book.cover.blob);
                     imgHtml = `<img class="lib-cover" src="${url}">`;
@@ -1295,7 +1298,8 @@
                     <div class="lib-info">
                         <div class="lib-title">${book.title}</div>
                         <div class="lib-meta">${Utils.fmtTime(book.progress)} / ${Utils.fmtTime(book.duration)} ${badges}</div>
-                        <div class="progress-bar-mini"><div class="progress-fill-mini" style="width:${pct}%"></div></div>
+                        ${wordStats}
+                        <div class="progress-bar-mini"><div class="progress-fill-mini" style="width:${durPct}%"></div></div>
                     </div>
                 </div>
                 <button class="del-btn" onclick="App.deleteBook('${book.id}', event)">×</button>`;
@@ -1445,7 +1449,8 @@
                         if (!meta) {
                             meta = {
                                 id: id, title: audioFile.name.replace(/\.(mp3|m4b|aac|mp4|m4a)$/i, ''),
-                                duration: 0, progress: 0, lastPlayed: Date.now(), subs: [], chapters: [], bookmarks: [], cover: null
+                                duration: 0, progress: 0, lastPlayed: Date.now(), subs: [], chapters: [], bookmarks: [], cover: null,
+                                totalWords: 0, readWords: 0
                             };
                         }
                         if (audioFile.handle) meta.handle = audioFile.handle;
@@ -1459,7 +1464,10 @@
                         if (parsed.cover) meta.cover = parsed.cover;
                         if (parsed.tags && parsed.tags.Title && meta.progress === 0) meta.title = parsed.tags.Title;
 
-                        if (srtFile) meta.subs = await this.parseSrt(srtFile);
+                        if (srtFile) {
+                            meta.subs = await this.parseSrt(srtFile);
+                            meta.totalWords = meta.subs.reduce((acc, s) => acc + this.countWords(s.text), 0);
+                        }
                         if (jsonFile) meta.chapters = await this.parseJsonChapters(jsonFile);
                         
                         await DB.setActiveAudio(audioFile);
@@ -1479,6 +1487,7 @@
             try {
                 const subs = await this.parseSrt(file);
                 this.currentBook.subs = subs;
+                this.currentBook.totalWords = subs.reduce((acc, s) => acc + this.countWords(s.text), 0);
                 await DB.saveMetadata(this.currentBook);
                 Player.meta = this.currentBook;
                 Player.subs = subs;
@@ -1723,7 +1732,6 @@
                 this.elSubList.innerHTML = `
                     <div class="srt-empty-container">
                         <div class="srt-empty" onclick="if('showOpenFilePicker' in window){App.pickFile()}else{document.getElementById('file-input').click()}">
-                            <div class="srt-empty-icon">📝</div>
                             <div style="font-weight:bold; font-size:1.2rem; margin-bottom:5px;">No Subtitles Loaded</div>
                             <div style="font-size:0.9rem;">Drop .srt file here or click to add</div>
                         </div>
@@ -1991,6 +1999,14 @@
             const sessionSpent = (now - App.sessionStartTime);
             this.meta.timeSpent = (this.meta.timeSpent || 0) + (sessionSpent / 60000);
             App.sessionStartTime = now; // Reset for next chunk
+            // Update words read
+            if (this.subs && this.subs.length > 0 && this.activeIndex !== -1) {
+                let readCount = 0;
+                for (let i = 0; i <= this.activeIndex; i++) {
+                    readCount += App.countWords(this.subs[i].text);
+                }
+                this.meta.readWords = readCount;
+            }
         }
         
         DB.saveMetadata(this.meta); 
