@@ -41,6 +41,16 @@
 | **Translate Line** | **T** | **Button X (2)** |
 | Exit Word Nav | N | L2 (6) |
 
+### External Macros (Recommended for full immersion)
+For actions that require direct interaction with browser extensions (like Yomitan), it is recommended to use external software like **DS4Windows** to map gamepad buttons to keyboard shortcuts:
+
+| Action | Keyboard Shortcut | Recommended Gamepad Mapping (DS4Windows) |
+| :--- | :--- | :--- |
+| **Yomitan: Add Card** | `Alt + E` | **Triangle (3)** |
+| **Yomitan: Close** | `Esc` | **Circle (1)** |
+
+*Note: Since these buttons are handled via DS4Windows, they will trigger Yomitan's internal shortcuts directly. You can download a pre-configured profile here: [kikiyomi_ds4.xml](https://github.com/JSOClarke/my_configs/blob/main/kikiyomi_ds4.xml).*
+
 ## 🚀 Getting Started
 
 1.  Open the [live player](https://rtr46.github.io/kikiyomi).
