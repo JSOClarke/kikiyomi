@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gamepad & Segmenter Prototype</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            background-color: #121212;
+            color: #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .sentence-container {
+            font-size: 3rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .word {
+            padding: 2px 4px;
+            margin: 0 2px;
+            border-radius: 4px;
+            transition: background-color 0.1s, color 0.1s;
+			cursor: pointer;
+        }
+
+        .word.highlighted {
+            background-color: #bb86fc; /* Primary purple from kikiyomi */
+            color: #000;
+            font-weight: bold;
+        }
+
+        .instructions {
+            color: #888;
+            font-size: 1.2rem;
+            text-align: center;
+            max-width: 600px;
+        }
+		
+		#gamepad-status {
+			margin-top: 10px;
+			color: #03dac6;
+		}
+    </style>
+</head>
+<body>
+
+    <div class="instructions">
+        <p>This is a prototype focusing <strong>only</strong> on text segmentation and navigation.</p>
+        <p>Use <strong>Left/Right Arrows</strong> on your keyboard, OR the <strong>D-Pad Left/Right</strong> on a connected Gamepad to navigate the words.</p>
+		<div id="gamepad-status">Waiting for gamepad connection... (Press any button to wake it up)</div>
+    </div>
+
+    <div class="sentence-container" id="sentence"></div>
+
+    <script>
+        // 1. TEXT SEGMENTATION
+        const textToRead = "私は日本でたくさん日本語を勉強しました。";
+        
+        // We use Intl.Segmenter with 'ja' (Japanese) to break the sentence into words automatically!
+        const segmenter = new Intl.Segmenter('ja', { granularity: 'word' });
+        const segments = segmenter.segment(textToRead);
+
+        const container = document.getElementById('sentence');
+        let words = [];
+
+        // Build the HTML spans for each word
+        let index = 0;
+        for (const { segment, isWordLike } of segments) {
+            // We can optionally filter to only allow highlighting "word-like" segments 
+			// (skipping punctuation), but for this prototype let's wrap everything.
+            const span = document.createElement('span');
+            span.className = 'word';
+            span.textContent = segment;
+            span.id = `word-${index}`;
+            container.appendChild(span);
+            words.push({ element: span, text: segment, index: index });
+            index++;
+        }
+
+        // 2. NAVIGATION LOGIC
+        let activeWordIndex = 0;
+
+        function updateHighlight() {
+            // Remove highlight from all words
+            words.forEach(w => w.element.classList.remove('highlighted'));
+            // Add highlight to current active word
+            words[activeWordIndex].element.classList.add('highlighted');
+        }
+
+        function moveLeft() {
+            if (activeWordIndex > 0) {
+                activeWordIndex--;
+                updateHighlight();
+            }
+        }
+
+        function moveRight() {
+            if (activeWordIndex < words.length - 1) {
+                activeWordIndex++;
+                updateHighlight();
+            }
+        }
+
+        // Initialize first highlight
+        updateHighlight();
+
+
+        // 3. INPUT HANDLING (Keyboard)
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') moveLeft();
+            if (e.key === 'ArrowRight') moveRight();
+			if (e.key.toLowerCase() === 's') triggerYomitanStrategy1();
+			if (e.key.toLowerCase() === 'd') triggerYomitanStrategy2();
+        });
+
+
+        // 4. INPUT HANDLING (Gamepad)
+        const gpStatus = document.getElementById('gamepad-status');
+        let gamepadConnected = false;
+        
+        // Track the previous state of buttons so we only trigger once per press
+        let prevBtns = {}; 
+
+        window.addEventListener("gamepadconnected", (e) => {
+            gamepadConnected = true;
+            gpStatus.textContent = `Gamepad connected: ${e.gamepad.id}`;
+            requestAnimationFrame(pollGamepad);
+        });
+
+        window.addEventListener("gamepaddisconnected", (e) => {
+            gamepadConnected = false;
+            gpStatus.textContent = "Waiting for gamepad connection... (Press any button to wake it up)";
+        });
+
+        function pollGamepad() {
+            if (!gamepadConnected) return;
+
+            const gp = navigator.getGamepads()[0];
+            if (gp) {
+                // Button 14 is usually D-Pad Left, Button 15 is D-Pad Right
+                checkButton(gp, 14, moveLeft);
+                checkButton(gp, 15, moveRight);
+				
+				// Button 0 (A), Button 1 (B)
+				checkButton(gp, 0, triggerYomitanStrategy1);
+				checkButton(gp, 1, triggerYomitanStrategy2);
+            }
+
+            requestAnimationFrame(pollGamepad);
+        }
+
+        function checkButton(gp, buttonIndex, callback) {
+            if (gp.buttons[buttonIndex] && gp.buttons[buttonIndex].pressed) {
+                // Only fire the callback if the button wasn't pressed in the previous frame
+                if (!prevBtns[buttonIndex]) {
+                    prevBtns[buttonIndex] = true;
+                    callback();
+                }
+            } else {
+                prevBtns[buttonIndex] = false;
+            }
+        }
+		
+		function triggerYomitanStrategy1() {
+			if (words.length === 0) return;
+			const targetElement = words[activeWordIndex].element;
+			console.log(`[Strategy 1] Pointer + Keyboard Events: "${targetElement.textContent}"`);
+			
+			const rect = targetElement.getBoundingClientRect();
+			// Aim for the center of the FIRST character. 
+			// Japanese characters are generally square, so adding half the height to the left edge 
+			// usually puts us right in the middle of the first character, safely past any padding.
+			const x = rect.left + (rect.height / 2); 
+			const y = rect.top + (rect.height / 2);
+
+            // 1. Dispatch pointermove
+			const pointerEvent = new PointerEvent('pointermove', {
+				view: window, bubbles: true, cancelable: true,
+				clientX: x, clientY: y, screenX: x, screenY: y,
+				pointerType: 'mouse', isPrimary: true
+			});
+            targetElement.dispatchEvent(pointerEvent); // dispatch to element
+			
+            // 2. Dispatch keydown for Shift
+			const keydownEvent = new KeyboardEvent('keydown', {
+				view: window, bubbles: true, cancelable: true,
+				key: 'Shift', code: 'ShiftLeft', shiftKey: true, keyCode: 16
+			});
+			document.dispatchEvent(keydownEvent); // Yomitan usually listens to document
+
+			targetElement.style.transform = 'scale(1.1)';
+			setTimeout(() => targetElement.style.transform = 'scale(1)', 150);
+		}
+
+		function triggerYomitanStrategy2() {
+			if (words.length === 0) return;
+			const targetElement = words[activeWordIndex].element;
+			console.log(`[Strategy 2] text selection: "${targetElement.textContent}"`);
+			
+			// Programmatically select the text
+			const selection = window.getSelection();
+			const range = document.createRange();
+			range.selectNodeContents(targetElement);
+			selection.removeAllRanges(); // Clear previous
+			selection.addRange(range);   // Select current word
+
+			targetElement.style.transform = 'scale(1.1)';
+			setTimeout(() => targetElement.style.transform = 'scale(1)', 150);
+		}
+    </script>
+</body>
+</html>

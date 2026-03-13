@@ -11,8 +11,21 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <style>
-        :root { 
-            --bg: #121212; --surface: #1e1e1e; --primary: #bb86fc; --text: #b0b0b0; --text-active: #ffffff; --sec: #03dac6; --warn: #ffb74d;
+        /* DEFAULT THEME (Kiku Dark) */
+        :root, [data-theme="kiku-dark"] { 
+            --bg: #1e1e1e; /* Softer dark grey background */
+            --surface: #2d2d2d; 
+            --surface-hover: #383838;
+            --surface-active: #4a4a4a;
+            --primary: #64b5f6; /* Kiku Accent Blue */
+            --text: #e0e0e0; 
+            --text-muted: #888888;
+            --text-active: #ffffff; 
+            --sec: #81c784; 
+            --warn: #ffb74d;
+            --border: #444444;
+            --radius: 8px; /* Softer, rounded kiku aesthetics */
+            
             --font-ui: system-ui, -apple-system, sans-serif;
             --font-reader: system-ui, -apple-system, sans-serif;
             --font-size-base: 36px;
@@ -20,6 +33,37 @@
             --active-scale: 1.05;
             --focus-width: 90%;
         }
+
+        /* KIKU LIGHT THEME */
+        [data-theme="kiku-light"] {
+            --bg: #f5f5f5;
+            --surface: #ffffff;
+            --surface-hover: #f0f0f0;
+            --surface-active: #e0e0e0;
+            --primary: #5c6bc0; /* Deeper indigo accent for visibility on white */
+            --text: #333333;
+            --text-muted: #666666;
+            --text-active: #000000;
+            --sec: #4caf50;
+            --warn: #ff9800;
+            --border: #e0e0e0;
+        }
+
+        /* MATCHA THEME */
+        [data-theme="matcha"] {
+            --bg: #f5f5dc; /* Soft beige/cream */
+            --surface: #ffffff;
+            --surface-hover: #e8e8ce;
+            --surface-active: #d6d6b8;
+            --primary: #8bc34a; /* Matcha green */
+            --text: #4e4e4e;
+            --text-muted: #8d8d8d;
+            --text-active: #2b2b2b;
+            --sec: #ffb74d;
+            --warn: #f44336;
+            --border: #dcdcc3;
+        }
+
         * { box-sizing: border-box; }
         body, button, header, .modal, .drop-zone, input[type=range] { 
             user-select: none; -webkit-user-select: none; 
@@ -29,85 +73,86 @@
         
         /* --- UTILS --- */
         .hidden { display: none !important; }
-        .btn { background: var(--surface); color: var(--text); border: 1px solid #333; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 0.9rem; transition: background 0.2s; font-family: var(--font-ui); }
-        .btn:active { background: #333; transform: scale(0.98); }
-        .btn-primary { background: var(--primary); color: #000; font-weight: bold; border: none; }
-        .icon-btn { background: transparent; border: none; color: #888; font-size: 1.3rem; cursor: pointer; padding: 5px; margin-left: 5px; }
-        .icon-btn:hover { color: #fff; }
-        .del-btn { color: #555; font-size: 1.2rem; padding: 0 15px; cursor: pointer; background: transparent; border:none; height: 100%; display: flex; align-items: center; }
+        .btn { background: var(--surface); color: var(--text); border: 1px solid var(--border); padding: 8px 14px; border-radius: var(--radius); cursor: pointer; font-size: 0.9rem; transition: background 0.2s; font-family: var(--font-ui); }
+        .btn:active { background: var(--surface-active); transform: scale(0.98); }
+        .btn-primary { background: var(--primary); color: var(--bg); font-weight: bold; border: none; }
+        .icon-btn { background: transparent; border: none; color: var(--text-muted); font-size: 1.3rem; cursor: pointer; padding: 5px; margin-left: 5px; }
+        .icon-btn:hover { color: var(--text-active); }
+        .del-btn { color: var(--text-muted); font-size: 1.2rem; padding: 0 15px; cursor: pointer; background: transparent; border:none; height: 100%; display: flex; align-items: center; }
         .del-btn:hover { color: #ff5555; }
         
         /* --- MODALS --- */
-        .modal-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index: 200; display:flex; justify-content:center; align-items:center; backdrop-filter: blur(2px); }
-        .modal { background: var(--surface); padding: 25px; border-radius: 12px; width: 90%; max-width: 500px; border: 1px solid #333; box-shadow: 0 10px 25px rgba(0,0,0,0.5); max-height: 85vh; display: flex; flex-direction: column; }
+        .modal-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index: 200; display:flex; justify-content:center; align-items:center; backdrop-filter: blur(4px); }
+        .modal { background: var(--surface); padding: 25px; border-radius: var(--radius); width: 90%; max-width: 500px; border: 1px solid var(--border); box-shadow: 0 10px 25px rgba(0,0,0,0.2); max-height: 85vh; display: flex; flex-direction: column; }
         .setting-row { margin-bottom: 20px; display:flex; justify-content: space-between; align-items: center; }
-        .setting-row label { color: #e0e0e0; font-size: 0.9rem; flex: 1; }
+        .setting-row label { color: var(--text); font-size: 0.9rem; flex: 1; }
         .setting-input-group { flex: 1; display:flex; justify-content: flex-end; align-items: center; gap: 10px; }
-        select, input[type=number] { padding: 8px; background: #121212; border: 1px solid #333; color: #fff; border-radius: 4px; max-width: 100%; }
+        select, input[type=number] { padding: 8px; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 4px; max-width: 100%; }
         
         #loading-overlay { z-index: 300; flex-direction: column; }
-        .spinner { width: 50px; height: 50px; border: 5px solid #333; border-top: 5px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
+        .spinner { width: 50px; height: 50px; border: 5px solid var(--border); border-top: 5px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     
         .key-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-        .key-table td { padding: 8px 0; border-bottom: 1px solid #333; }
+        .key-table td { padding: 8px 0; border-bottom: 1px solid var(--border); }
         .key-table td:first-child { color: var(--primary); font-weight: bold; }
-        .key-table td:last-child { text-align: right; color: #aaa; }
+        .key-table td:last-child { text-align: right; color: var(--text-muted); }
         
         /* Bookmarks Modal */
-        .bm-filter-row { margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 15px; }
+        .bm-filter-row { margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 15px; }
         #bm-list { overflow-y: auto; margin: 0; flex: 1; min-height: 200px; }
-        .bm-item { padding: 12px; border-bottom: 1px solid #252525; cursor: pointer; display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: start; }
-        .bm-item:hover { background: #252525; }
+        .bm-item { padding: 12px; border-bottom: 1px solid var(--border); cursor: pointer; display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: start; }
+        .bm-item:hover { background: var(--surface-hover); }
         .bm-content { display: flex; flex-direction: column; gap: 5px; overflow: hidden; }
-        .bm-text { color: #e0e0e0; font-size: 0.95rem; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-        .bm-meta { font-size: 0.75rem; color: #666; display: flex; justify-content: space-between; gap: 10px; }
+        .bm-text { color: var(--text); font-size: 0.95rem; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .bm-meta { font-size: 0.75rem; color: var(--text-muted); display: flex; justify-content: space-between; gap: 10px; }
         .bm-book-title { color: var(--primary); font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
-        .bm-del-btn { color: #666; background: transparent; border: none; font-size: 1.2rem; cursor: pointer; padding: 5px 10px; }
-        .bm-del-btn:hover { color: #ff5555; background: #333; border-radius: 4px; }
+        .bm-del-btn { color: var(--text-muted); background: transparent; border: none; font-size: 1.2rem; cursor: pointer; padding: 5px 10px; }
+        .bm-del-btn:hover { color: #ff5555; background: var(--surface-hover); border-radius: 4px; }
 
         /* --- VIEW: LIBRARY --- */
         #view-library { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; align-items: center; max-width: 800px; margin: 0 auto; width: 100%; }
         
-        .drop-zone { width: 100%; height: 100px; border: 2px dashed #333; border-radius: 12px; display: flex; flex-direction: row; gap: 15px; justify-content: center; align-items: center; background: #1a1a1a; margin-bottom: 20px; transition: border-color 0.2s; cursor: pointer; flex-shrink: 0; width: 100%; }
-        .drop-zone:hover { border-color: #666; background: #1f1f1f; }
-        .drop-zone.dragover { border-color: var(--primary); background: #222; }
+        .drop-zone { width: 100%; height: 100px; border: 2px dashed var(--border); border-radius: var(--radius); display: flex; flex-direction: row; gap: 15px; justify-content: center; align-items: center; background: var(--surface); margin-bottom: 20px; transition: border-color 0.2s; cursor: pointer; flex-shrink: 0; width: 100%; }
+        .drop-zone:hover { border-color: var(--text-muted); background: var(--surface-hover); }
+        .drop-zone.dragover { border-color: var(--primary); background: var(--surface-active); }
         
         #library-list { width: 100%; display: flex; flex-direction: column; gap: 10px; }
 
-        .lib-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-radius: 8px; background: #252525; border: 1px solid #333; cursor: pointer; transition: transform 0.1s, background 0.2s; height: 80px; overflow: hidden; }
-        .lib-item:hover { background: #2a2a2a; }
+        .lib-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--border); cursor: pointer; transition: transform 0.1s, background 0.2s; height: 80px; overflow: hidden; }
+        .lib-item:hover { background: var(--surface-hover); }
         .lib-item:active { transform: scale(0.99); }
-        .lib-item.active-book { border: 2px solid var(--primary); background: #2d2036; }
-        .lib-cover { width: 60px; height: 60px; background: #111; border-radius: 4px; object-fit: cover; margin-right: 15px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: #333; }
+        .lib-item.active-book { border: 2px solid var(--primary); background: var(--surface-active); }
+        .lib-cover { width: 60px; height: 60px; background: var(--bg); border-radius: 4px; object-fit: cover; margin-right: 15px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: var(--text-muted); border: 1px solid var(--border); }
         .lib-info { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
-        .lib-title { font-weight: bold; font-size: 1rem; margin-bottom: 5px; color: #e0e0e0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .lib-meta { color:#888; font-size:0.75rem; display: flex; align-items: center; gap: 6px; }
-        .progress-bar-mini { height: 4px; background: #111; width: 100%; margin-top: 8px; border-radius: 2px; }
+        .lib-title { font-weight: bold; font-size: 1rem; margin-bottom: 5px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .lib-meta { color:var(--text-muted); font-size:0.75rem; display: flex; align-items: center; gap: 6px; }
+        .progress-bar-mini { height: 4px; background: var(--bg); width: 100%; margin-top: 8px; border-radius: 2px; }
         .progress-fill-mini { height: 100%; background: var(--sec); width: 0%; border-radius: 2px; }
-        .badge { background: #111; color: #aaa; padding: 2px 5px; border-radius: 3px; font-size: 0.65rem; border: 1px solid #444; text-transform: uppercase; letter-spacing: 0.5px; }
+        .badge { background: var(--bg); color: var(--text-muted); padding: 2px 5px; border-radius: 3px; font-size: 0.65rem; border: 1px solid var(--border); text-transform: uppercase; letter-spacing: 0.5px; }
         .badge.cached { border-color: var(--sec); color: var(--sec); }
         .badge.linked { border-color: #4a9eff; color: #4a9eff; }
         .badge.playing { border-color: var(--primary); color: var(--primary); font-weight: bold; }
-        .version-footer { margin-top: auto; padding-top: 20px; color: #444; font-size: 0.8rem; font-family: monospace; }
+        .version-footer { margin-top: auto; padding-top: 20px; color: var(--text-muted); font-size: 0.8rem; font-family: monospace; }
 
         /* --- VIEW: PLAYER --- */
         #view-player { flex: 1; display: flex; flex-direction: column; height: 100%; overflow: hidden; position: relative; }
         
-        header { height: 60px; padding: 0 10px; background: var(--surface); display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #333; z-index: 50; flex-shrink: 0; position: relative; }
-        #player-title-container { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; pointer-events: none; }
-        #player-title { font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40%; font-size: 0.9rem; color:#888; pointer-events: auto; }
+        header { height: 60px; padding: 0 10px; background: var(--surface); display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); z-index: 50; flex-shrink: 0; position: relative; }
+        #player-title-container { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; pointer-events: none; gap: 10px; }
+        #player-title { font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40%; font-size: 0.9rem; color:var(--text-muted); pointer-events: auto; }
+        .nav-badge { background: var(--warn); color: #fff; font-size: 0.7rem; font-weight: bold; padding: 2px 6px; border-radius: 4px; letter-spacing: 0.5px; margin-left: 8px; vertical-align: middle; }
         
-        #controls { height: 140px; background: var(--surface); padding: 15px 20px; display: flex; flex-direction: column; justify-content: center; gap: 15px; border-top: 1px solid #333; z-index: 50; flex-shrink: 0; }
+        #controls { height: 140px; background: var(--surface); padding: 15px 20px; display: flex; flex-direction: column; justify-content: center; gap: 15px; border-top: 1px solid var(--border); z-index: 50; flex-shrink: 0; }
     
         #player-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; z-index: 10; }
         
         /* Subtitles List */
-        #sub-list { flex: 1; overflow-y: auto; padding: 50vh 0; margin: 0; list-style: none; scroll-behavior: auto; background: #121212; position: relative; }
+        #sub-list { flex: 1; overflow-y: auto; padding: 50vh 0; margin: 0; list-style: none; scroll-behavior: auto; background: var(--bg); position: relative; }
         #sub-list li { 
-            /* Grid Layout for stability: Star | Text */
+            /* Grid Layout for stability: Anki | Star | Text */
             display: grid; 
-            grid-template-columns: 50px 1fr; 
+            grid-template-columns: 50px 50px 1fr; 
             align-items: center;
             min-height: 1.5em;
             padding: 15px 0; /* Padding vertical only */
@@ -138,6 +183,21 @@
             text-shadow: 0 0 20px rgba(0,0,0,0.5); 
         }
         
+        /* Word Segmentation for Yomitan */
+        .word { 
+            padding: 2px 0px; 
+            margin: 0; 
+            border-radius: 2px; 
+            transition: background-color 0.1s, color 0.1s; 
+            cursor: pointer; 
+            display: inline-block;
+        }
+        .word.highlighted { 
+            background-color: var(--primary); 
+            color: #000; 
+            font-weight: bold; 
+        }
+        
         /* Bookmark Star */
         .star-col {
             display: flex;
@@ -147,45 +207,45 @@
         }
         .star-btn { 
             font-size: 1.5rem; 
-            color: #333; 
+            color: var(--text-muted); 
             cursor: pointer; 
             padding: 5px; 
             opacity: 0.5;
             transition: color 0.2s, opacity 0.2s;
             user-select: none;
         }
-        #sub-list li:hover .star-btn { color: #666; opacity: 1; }
+        #sub-list li:hover .star-btn { color: var(--text); opacity: 1; }
         .star-btn:hover { color: var(--warn) !important; opacity: 1 !important; transform: scale(1.1); }
         .star-btn.filled { opacity: 1; color: var(--warn); }
         
         /* Empty State SRT Upload */
         .srt-empty-container { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; width: 100%; padding: 40px; box-sizing: border-box; }
-        .srt-empty { width: 100%; height: 100%; max-width: 600px; max-height: 300px; border: 3px dashed #333; border-radius: 12px; display: flex; flex-direction: column; justify-content: center; align-items: center; color: #666; cursor: pointer; transition: all 0.2s; background: #151515; }
-        .srt-empty:hover { border-color: var(--primary); color: #e0e0e0; background: #1a1a1a; transform: scale(1.01); }
+        .srt-empty { width: 100%; height: 100%; max-width: 600px; max-height: 300px; border: 3px dashed var(--border); border-radius: var(--radius); display: flex; flex-direction: column; justify-content: center; align-items: center; color: var(--text-muted); cursor: pointer; transition: all 0.2s; background: var(--surface); }
+        .srt-empty:hover { border-color: var(--primary); color: var(--text); background: var(--surface-hover); transform: scale(1.01); }
         .srt-empty-icon { font-size: 3rem; margin-bottom: 15px; opacity: 0.5; }
     
         /* Chapters Sidebar */
-        #chapter-list { position: absolute; top: 60px; bottom: 140px; right: 0; width: 320px; background: #181818; border-left: 1px solid #333; overflow-y: auto; display: none; z-index: 60; box-shadow: -5px 0 15px rgba(0,0,0,0.5); }
+        #chapter-list { position: absolute; top: 60px; bottom: 140px; right: 0; width: 320px; background: var(--surface); border-left: 1px solid var(--border); overflow-y: auto; display: none; z-index: 60; box-shadow: -5px 0 15px rgba(0,0,0,0.5); }
         #chapter-list.open { display: block; }
-        .chap-item { padding: 6px 12px; border-bottom: 1px solid #252525; font-size: 0.85rem; cursor: pointer; color: #888; transition: background 0.2s; display: flex; align-items: center; }
-        .chap-item:hover { background: #252525; color: #ccc; }
-        .chap-item.active-chap { background: var(--primary); color: #000; border-left: none; font-weight: bold; }
-        .chap-item.active-chap .chap-time { color: #222; }
-        .chap-time { font-size: 0.75rem; color: #555; margin-right: 10px; font-family: monospace; min-width: 45px; text-align: right; }
+        .chap-item { padding: 6px 12px; border-bottom: 1px solid var(--border); font-size: 0.85rem; cursor: pointer; color: var(--text-muted); transition: background 0.2s; display: flex; align-items: center; }
+        .chap-item:hover { background: var(--surface-hover); color: var(--text); }
+        .chap-item.active-chap { background: var(--primary); color: var(--bg); border-left: none; font-weight: bold; }
+        .chap-item.active-chap .chap-time { color: var(--bg); }
+        .chap-time { font-size: 0.75rem; color: var(--text-muted); margin-right: 10px; font-family: monospace; min-width: 45px; text-align: right; }
         .chap-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     
         /* Custom Seek Bar */
-        .timeline-container { display: flex; align-items: center; gap: 15px; color: #888; font-family: monospace; font-size: 0.9rem; }
+        .timeline-container { display: flex; align-items: center; gap: 15px; color: var(--text-muted); font-family: monospace; font-size: 0.9rem; }
         .seek-wrapper { flex: 1; position: relative; height: 16px; display: flex; align-items: center; }
-        .seek-bg { position: absolute; left: 0; width: 100%; height: 4px; background: #333; border-radius: 2px; z-index: 1; }
+        .seek-bg { position: absolute; left: 0; width: 100%; height: 4px; background: var(--border); border-radius: 2px; z-index: 1; }
         .seek-fill { position: absolute; left: 0; width: 0%; height: 4px; background: var(--primary); border-radius: 2px; z-index: 2; pointer-events: none; }
         #seek-markers { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; }
         .chap-marker { position: absolute; width: 2px; height: 6px; background: rgba(255,255,255,0.4); top: 5px; transform: translateX(-50%); }
     
         input[type=range] { width: 100%; cursor: pointer; height: 16px; background: transparent; -webkit-appearance: none; position: relative; z-index: 4; margin: 0; }
-        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: #fff; margin-top: -6px; box-shadow: 0 1px 3px rgba(0,0,0,0.5); }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: var(--text-active); margin-top: -6px; box-shadow: 0 1px 3px rgba(0,0,0,0.5); border: 1px solid var(--border); }
         input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; background: transparent; }
-        input[type=range]::-moz-range-thumb { height: 16px; width: 16px; border-radius: 50%; background: #fff; border: none; box-shadow: 0 1px 3px rgba(0,0,0,0.5); }
+        input[type=range]::-moz-range-thumb { height: 16px; width: 16px; border-radius: 50%; background: var(--text-active); border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.5); }
         input[type=range]::-moz-range-track { width: 100%; height: 4px; background: transparent; }
     
         .buttons-row { display: flex; justify-content: center; gap: 25px; align-items: center; }
@@ -213,9 +273,37 @@
             #sub-list li.active { transform: none; /* Mobile scale handling override if needed */ }
             #sub-list li.active .text-container { transform: scale(var(--active-scale)); }
         }
+
+        /* Toast Notification */
+        #toast {
+            position: fixed;
+            bottom: 160px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: var(--surface);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 10px 20px;
+            font-size: 0.9rem;
+            font-family: sans-serif;
+            z-index: 9999;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s, transform 0.3s;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+        }
+        #toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+        #toast.success { border-color: var(--sec); color: var(--sec); }
+        #toast.error { border-color: #e57373; color: #e57373; }
     </style>
     </head>
     <body>
+    
+    <div id="toast"></div>
     
     <input type="file" id="srt-upload" hidden accept=".srt">
     
@@ -243,11 +331,13 @@
     <div id="modal-settings" class="modal-overlay hidden" onclick="if(event.target===this) App.toggleModal('modal-settings')">
         <div class="modal">
             <h2 style="margin-top:0; color: var(--primary);">Settings</h2>
+            <div class="setting-row"><label>Theme</label><select id="opt-theme" onchange="App.applySettings()"><option value="kiku-dark">Kiku Dark</option><option value="kiku-light">Kiku Light</option><option value="matcha">Matcha (Green)</option></select></div>
             <div class="setting-row"><label>Font Family</label><select id="opt-font" onchange="App.applySettings()"><option value="system-ui, -apple-system, sans-serif">System Sans</option><option value="'Times New Roman', serif">Serif</option><option value="'Hiragino Mincho ProN', 'Yu Mincho', serif">Yu Mincho (JP)</option><option value="'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif">Yu Gothic (JP)</option><option value="'Meiryo', sans-serif">Meiryo (JP)</option><option value="'MS Gothic', monospace">MS Gothic (JP)</option></select></div>
             <div class="setting-row"><label>Font Size (px)</label><div class="setting-input-group"><input type="number" id="opt-size" min="12" max="80" value="36" onchange="App.applySettings()" style="width:70px"></div></div>
             <div class="setting-row"><label>Focus Max Width (%)</label><div class="setting-input-group"><input type="number" id="opt-focus-width" min="50" max="100" value="90" onchange="App.applySettings()" style="width:70px"></div></div>
             <div class="setting-row"><label>Active Line Scale</label><div class="setting-input-group"><input type="number" id="opt-active-scale" min="1.0" max="2.0" step="0.05" value="1.05" onchange="App.applySettings()" style="width:70px"></div></div>
             <div class="setting-row"><label>Bold Active Line</label><input type="checkbox" id="opt-bold" onchange="App.applySettings()" style="width:20px; height:20px; accent-color: var(--primary);"></div>
+            <div class="setting-row"><label>Anki Audio Field</label><div class="setting-input-group"><input type="text" id="opt-anki-field" value="Sentence Audio" onchange="App.applySettings()" style="width:160px"></div></div>
             <div class="setting-row"><label>Fill Silence (Gaps)</label><input type="checkbox" id="opt-fill" checked onchange="App.applySettings()" style="width:20px; height:20px; accent-color: var(--primary);"></div>
             <div style="text-align: right; margin-top:20px;"><button class="btn btn-primary" onclick="App.toggleModal('modal-settings')">Done</button></div>
         </div>
@@ -281,28 +371,36 @@
                 <tr><td>Replay Line</td><td>S / Down / (GP: Down)</td></tr>
                 <tr><td>Prev / Next Chap</td><td>Q / E / (GP: L1/R1)</td></tr>
                 <tr><td>Toggle Focus</td><td>F / (GP: Y)</td></tr>
+                <tr><td>Word Nav Mode</td><td>N / (GP: L2)</td></tr>
+                <tr><td>Word Nav (When Active)</td><td>A/D / (GP: Left/Right)</td></tr>
+                <tr><td>Yomitan (When Active)</td><td>Enter/Space / (GP: A)</td></tr>
+                <tr><td>Add Anki Card (When Active)</td><td>C / (GP: X)</td></tr>
                 <tr><td>Exit Focus</td><td>Esc / Hold Click</td></tr>
             </table>
-            <div style="text-align: right; margin-top:20px;"><button class="btn btn-primary" onclick="App.toggleModal('modal-help')">Close</button></div>
+            <div style="text-align: right; margin-top:20px;"><button class="btn btn-primary" onclick="App.toggleModal('modal-help')">Got it</button></div>
         </div>
     </div>
     
     <!-- LIBRARY -->
     <div id="view-library">
-        <h1 style="color: var(--primary); letter-spacing: 2px; font-weight: normal; margin-bottom: 20px;">kikiyomi</h1>
         
-        <div id="drop-zone" class="drop-zone">
-            <div style="font-size: 2rem; opacity: 0.7;">🎧</div>
-            <div style="display:flex; flex-direction:column; align-items: flex-start;">
-                <div style="color: #e0e0e0; font-weight: bold; font-size: 1rem;">Open Audio File</div>
-                <div style="color: #666; font-size: 0.8rem;">.m4b, .mp3 + .srt</div>
-            </div>
-            <input type="file" id="file-input" hidden multiple accept=".mp3,.m4b,.aac,.srt,.json,.m4a">
+        <div style="text-align:center; margin-bottom: 30px;">
+            <h1 style="color:var(--primary); margin:0; font-style:italic;">kikiyomi</h1>
+            <div style="color:#666; font-size:0.9rem; margin-top:5px;">Audiobook & Subtitle Player</div>
         </div>
-
-        <h3 style="align-self: flex-start; margin-bottom: 10px; color: #555; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;">Library</h3>
+        
+        <div class="drop-zone" id="drop-zone">
+            <div style="font-size:2rem; opacity:0.8;">🎧</div>
+            <div style="text-align:left;">
+                <div style="font-weight:bold; color:#e0e0e0;">Drop Audio & Subtitles here</div>
+                <div style="color:#888; font-size:0.85rem; margin-top:3px;">or click to browse files</div>
+            </div>
+            <input type="file" id="file-input" hidden multiple accept=".mp3,.m4b,.aac,.m4a,.srt,.json">
+        </div>
+        
+        <div style="width:100%; border-bottom:1px solid #333; margin-bottom: 15px; padding-bottom:5px; color:#aaa; font-size:0.9rem; font-weight:bold;">Library Details</div>
         <div id="library-list"></div>
-        <div class="version-footer">v0.0.4</div>
+        <div class="version-footer">v1.1.2 - Local Storage Only</div>
     </div>
     
     <!-- PLAYER -->
@@ -310,7 +408,8 @@
         <header>
             <button class="btn" onclick="App.showLibrary()" style="z-index: 2;">← Home</button>
             <div id="player-title-container">
-                <div id="player-title">...</div>
+                <div id="player-title">Loading...</div>
+                <span id="nav-indicator" class="nav-badge hidden">WORD NAV</span>
             </div>
             <div style="display:flex; align-items: center; z-index: 2;">
                 <button class="btn" onclick="App.showBookmarks()" style="margin-right:5px">★</button>
@@ -579,6 +678,140 @@
         }
     };
     
+    const AudioUtils = {
+        async getAudioSnippetBase64(file, startTime, endTime) {
+            console.log("AudioUtils.getAudioSnippetBase64 START", file.name, startTime, endTime);
+            // Cap duration at 15s to be safe
+            const duration = Math.min(endTime - startTime, 15.0);
+            if (duration <= 0) {
+                console.error("Invalid audio duration:", duration);
+                throw new Error("Invalid duration");
+            }
+
+            return new Promise((resolve, reject) => {
+                const audio = new Audio();
+                const url = URL.createObjectURL(file);
+                audio.src = url;
+                audio.currentTime = startTime;
+
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                const audioCtx = new AudioContext();
+                const source = audioCtx.createMediaElementSource(audio);
+                const dest = audioCtx.createMediaStreamDestination();
+                source.connect(dest); // Silent recording (not connected to audioCtx.destination)
+
+                // Anki's backend uses mpv which supports webm/opus natively
+                const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm';
+                console.log("Using MIME type for MediaRecorder:", mimeType);
+                const recorder = new MediaRecorder(dest.stream, { mimeType });
+                const chunks = [];
+
+                recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+                recorder.onstop = () => {
+                    console.log("MediaRecorder stopped, processing chunks...", chunks.length);
+                    audio.pause();
+                    source.disconnect();
+                    audioCtx.close();
+                    URL.revokeObjectURL(url);
+                    
+                    const rawBlob = new Blob(chunks, { type: mimeType });
+                    const reader = new FileReader();
+                    reader.readAsDataURL(rawBlob);
+                    reader.onloadend = () => {
+                        console.log("FileReader finished reading base64 data");
+                        const base64data = reader.result.split(',')[1];
+                        resolve({ base64: base64data, ext: 'webm' });
+                    };
+                };
+
+                audio.onseeked = () => {
+                    console.log("Audio seeked to start time, beginning playback & recording...");
+                    audio.play().then(() => {
+                        recorder.start();
+                        setTimeout(() => {
+                            console.log("Duration reached, stopping recorder...");
+                            recorder.stop();
+                        }, duration * 1000);
+                    }).catch(e => {
+                        console.error("Audio playback failed during recording", e);
+                        audioCtx.close();
+                        reject(e);
+                    });
+                };
+                audio.onerror = (e) => { 
+                    console.error("Audio element error", e);
+                    audioCtx.close(); 
+                    reject(e); 
+                };
+            });
+        }
+    };
+
+    const AnkiConnect = {
+        async invoke(action, params = {}) {
+            console.log(`AnkiConnect invoking: ${action}`, params);
+            try {
+                const response = await fetch('http://127.0.0.1:8765', {
+                    method: 'POST',
+                    body: JSON.stringify({ action, version: 6, params })
+                });
+                const result = await response.json();
+                if (result.error) {
+                    console.error("AnkiConnect Error from API:", result.error);
+                    throw new Error(result.error);
+                }
+                console.log(`AnkiConnect result for ${action}:`, result.result);
+                return result.result;
+            } catch (e) {
+                console.warn ("AnkiConnect Exception:", e);
+                return null;
+            }
+        },
+        async getLastCreatedCardId() {
+            const cards = await this.invoke('findCards', { query: 'added:1' });
+            if (!cards || cards.length === 0) return null;
+            return Math.max(...cards);
+        },
+        async addAudioToCard(cardId, audioBase64, filename, targetField) {
+            const cardInfo = await this.invoke('cardsInfo', { cards: [cardId] });
+            if (!cardInfo || cardInfo.length === 0) return false;
+            
+            const noteId = cardInfo[0].note;
+            const noteInfo = await this.invoke('notesInfo', { notes: [noteId] });
+            if (!noteInfo || noteInfo.length === 0) return false;
+            
+            const fields = noteInfo[0].fields;
+            console.log("📋 Available Anki note fields:", Object.keys(fields));
+            console.log("🎯 Configured target field:", targetField);
+
+            // Use the user-configured field if it exists on the note, otherwise auto-detect
+            let audioField = targetField && fields[targetField] !== undefined ? targetField : null;
+            if (!audioField) {
+                for (const key of Object.keys(fields)) {
+                    if (key.toLowerCase().includes('audio') || key.toLowerCase().includes('sound') || key.toLowerCase().includes('voice')) {
+                        audioField = key;
+                        break;
+                    }
+                }
+            }
+            if (!audioField) audioField = Object.keys(fields)[0]; 
+            
+            const storedFilename = await this.invoke('storeMediaFile', {
+                filename: filename,
+                data: audioBase64
+            });
+            if (!storedFilename) return false;
+            
+            const currentContent = fields[audioField].value;
+            const newContent = currentContent + ` [sound:${storedFilename}]`;
+            
+            await this.invoke('updateNoteFields', {
+                note: { id: noteId, fields: { [audioField]: newContent } }
+            });
+            return audioField; // Return field name for toast message
+        }
+    };
+    
     // --- DB & APP ---
     const DB = {
         db: null,
@@ -630,7 +863,15 @@
     
     const App = {
         currentBook: null, activeAudioBlob: null,
-        settings: { font: '', size: 36, fillGap: true, bold: false, focusWidth: 90, activeScale: 1.05 },
+        words: [], activeWordIndex: 0, navigationActive: false,
+        settings: { font: '', size: 36, fillGap: true, bold: false, focusWidth: 90, activeScale: 1.05, ankiField: 'Sentence Audio' },
+        showToast(message, type = 'success', duration = 3000) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `show ${type}`;
+            clearTimeout(this._toastTimer);
+            this._toastTimer = setTimeout(() => toast.className = '', duration);
+        },
         async init() {
             await DB.init();
             this.loadSettings();
@@ -686,42 +927,159 @@
                 this.handleFiles(files);
             } catch(e) { }
         },
+        updateWordHighlight() {
+            if (this.words.length === 0) return;
+            this.words.forEach(w => w.element.classList.remove('highlighted'));
+            if (this.activeWordIndex >= 0 && this.activeWordIndex < this.words.length) {
+                const target = this.words[this.activeWordIndex];
+                target.element.classList.add('highlighted');
+                target.element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        },
+        moveWordLeft() {
+            if (this.activeWordIndex > 0) {
+                this.activeWordIndex--;
+                this.updateWordHighlight();
+            }
+        },
+        moveWordRight() {
+            if (this.activeWordIndex < this.words.length - 1) {
+                this.activeWordIndex++;
+                this.updateWordHighlight();
+            }
+        },
+        triggerYomitan() {
+            if (this.words.length === 0 || this.activeWordIndex < 0 || this.activeWordIndex >= this.words.length) return;
+            const targetElement = this.words[this.activeWordIndex].element;
+            
+            const rect = targetElement.getBoundingClientRect();
+            const x = rect.left + (rect.height / 2); 
+            const y = rect.top + (rect.height / 2);
+
+            const pointerEvent = new PointerEvent('pointermove', {
+                view: window, bubbles: true, cancelable: true,
+                clientX: x, clientY: y, screenX: x, screenY: y,
+                pointerType: 'mouse', isPrimary: true
+            });
+            targetElement.dispatchEvent(pointerEvent);
+            
+            const keydownEvent = new KeyboardEvent('keydown', {
+                view: window, bubbles: true, cancelable: true,
+                key: 'Shift', code: 'ShiftLeft', shiftKey: true, keyCode: 16
+            });
+            document.dispatchEvent(keydownEvent);
+
+            targetElement.style.transform = 'scale(1.1)';
+            setTimeout(() => targetElement.style.transform = 'scale(1)', 150);
+        },
+        attachAudioFromSub(subIndex, btnElement) {
+            console.log("attachAudioFromSub clicked for subIndex:", subIndex);
+            if (!App.activeAudioBlob || !Player.subs || !Player.subs[subIndex]) {
+                console.warn("attachAudioFromSub early exit: Missing audio blob or subtitles", { blob: App.activeAudioBlob, subs: Player.subs, sub: Player.subs?.[subIndex] });
+                return;
+            }
+            const sub = Player.subs[subIndex];
+            console.log("Selected subtitle:", sub);
+            
+            const originalColor = btnElement.style.color;
+            btnElement.style.color = 'var(--warn)';
+            const endTime = sub.end || (sub.start + 5.0);
+            
+            console.log(`Requesting audio extraction from ${sub.start} to ${endTime}`);
+            AudioUtils.getAudioSnippetBase64(App.activeAudioBlob, sub.start, endTime).then(async (audioData) => {
+                console.log("Audio snippet extracted successfully, querying AnkiConnect for latest card...");
+                const cardId = await AnkiConnect.getLastCreatedCardId();
+                if (cardId) {
+                    console.log(`Found recent Anki card ID: ${cardId}, attempting to add audio...`);
+                    const filename = `kikiyomi_audio_${Date.now()}.${audioData.ext}`;
+                    const fieldUsed = await AnkiConnect.addAudioToCard(cardId, audioData.base64, filename, App.settings.ankiField);
+                    if(fieldUsed) {
+                        console.log("Successfully attached audio to card!");
+                        btnElement.style.color = 'var(--sec)';
+                        setTimeout(() => btnElement.style.color = originalColor, 2000);
+                        App.showToast(`✅ Audio added to "${fieldUsed}"`, 'success');
+                    } else {
+                        console.error("AnkiConnect returned false when adding audio to the card fields");
+                        btnElement.style.color = 'red';
+                        setTimeout(() => btnElement.style.color = originalColor, 2000);
+                        App.showToast('❌ Failed to update card fields', 'error');
+                    }
+                } else {
+                    console.warn("AnkiConnect could not find a recently created card.");
+                    btnElement.style.color = 'orange';
+                    setTimeout(() => btnElement.style.color = originalColor, 2000);
+                    App.showToast('⚠️ No recent Anki card found', 'error');
+                }
+            }).catch(e => {
+                console.error("Audio extraction failed entirely:", e);
+                btnElement.style.color = 'red';
+                setTimeout(() => btnElement.style.color = originalColor, 2000);
+                App.showToast('❌ Audio extraction error', 'error');
+            });
+        },
+        triggerAnkiCard() {
+            if (this.words.length === 0 || this.activeWordIndex < 0 || this.activeWordIndex >= this.words.length) return;
+            // Yomitan default shortcut to add an Anki card is Alt + E
+            document.dispatchEvent(new KeyboardEvent('keydown', {
+                key: 'e', code: 'KeyE', keyCode: 69, altKey: true, bubbles: true, cancelable: true
+            }));
+            
+            const targetElement = this.words[this.activeWordIndex].element;
+            const originalBg = targetElement.style.backgroundColor;
+            targetElement.style.backgroundColor = '#4CAF50';
+            targetElement.style.color = '#fff';
+            setTimeout(() => {
+                targetElement.style.backgroundColor = originalBg;
+                targetElement.style.color = '';
+            }, 200);
+        },
         loadSettings() {
+            this.settings.theme = localStorage.getItem('ky_theme') || "kiku-dark";
             this.settings.font = localStorage.getItem('ky_font') || "system-ui, -apple-system, sans-serif";
             this.settings.size = parseInt(localStorage.getItem('ky_size') || "36");
             this.settings.fillGap = localStorage.getItem('ky_fill') !== "false"; 
             this.settings.bold = localStorage.getItem('ky_bold') === "true"; 
             this.settings.focusWidth = parseInt(localStorage.getItem('ky_focus_width') || "90");
             this.settings.activeScale = parseFloat(localStorage.getItem('ky_active_scale') || "1.05");
+            this.settings.ankiField = localStorage.getItem('ky_anki_field') || "Sentence Audio";
     
+            document.getElementById('opt-theme').value = this.settings.theme;
             document.getElementById('opt-font').value = this.settings.font;
             document.getElementById('opt-size').value = this.settings.size;
             document.getElementById('opt-fill').checked = this.settings.fillGap;
             document.getElementById('opt-bold').checked = this.settings.bold;
             document.getElementById('opt-focus-width').value = this.settings.focusWidth;
             document.getElementById('opt-active-scale').value = this.settings.activeScale;
-            this.applySettings();
+            document.getElementById('opt-anki-field').value = this.settings.ankiField;
+            this.applySettings(true);
         },
-        applySettings() {
-            this.settings.font = document.getElementById('opt-font').value;
-            this.settings.size = parseInt(document.getElementById('opt-size').value);
-            this.settings.fillGap = document.getElementById('opt-fill').checked;
-            this.settings.bold = document.getElementById('opt-bold').checked;
-            this.settings.focusWidth = parseInt(document.getElementById('opt-focus-width').value);
-            this.settings.activeScale = parseFloat(document.getElementById('opt-active-scale').value);
+        applySettings(isLoad=false) {
+            if (!isLoad) {
+                this.settings.theme = document.getElementById('opt-theme').value;
+                this.settings.font = document.getElementById('opt-font').value;
+                this.settings.size = parseInt(document.getElementById('opt-size').value);
+                this.settings.fillGap = document.getElementById('opt-fill').checked;
+                this.settings.bold = document.getElementById('opt-bold').checked;
+                this.settings.focusWidth = parseInt(document.getElementById('opt-focus-width').value);
+                this.settings.activeScale = parseFloat(document.getElementById('opt-active-scale').value);
+                this.settings.ankiField = document.getElementById('opt-anki-field').value.trim();
+        
+                localStorage.setItem('ky_theme', this.settings.theme);
+                localStorage.setItem('ky_font', this.settings.font);
+                localStorage.setItem('ky_size', this.settings.size);
+                localStorage.setItem('ky_fill', this.settings.fillGap);
+                localStorage.setItem('ky_bold', this.settings.bold);
+                localStorage.setItem('ky_focus_width', this.settings.focusWidth);
+                localStorage.setItem('ky_active_scale', this.settings.activeScale);
+                localStorage.setItem('ky_anki_field', this.settings.ankiField);
+            }
     
+            document.documentElement.setAttribute('data-theme', this.settings.theme);
             document.documentElement.style.setProperty('--font-reader', this.settings.font);
             document.documentElement.style.setProperty('--font-size-base', this.settings.size + 'px');
             document.documentElement.style.setProperty('--active-weight', this.settings.bold ? 'bold' : 'normal');
             document.documentElement.style.setProperty('--focus-width', this.settings.focusWidth + '%');
             document.documentElement.style.setProperty('--active-scale', this.settings.activeScale);
-    
-            localStorage.setItem('ky_font', this.settings.font);
-            localStorage.setItem('ky_size', this.settings.size);
-            localStorage.setItem('ky_fill', this.settings.fillGap);
-            localStorage.setItem('ky_bold', this.settings.bold);
-            localStorage.setItem('ky_focus_width', this.settings.focusWidth);
-            localStorage.setItem('ky_active_scale', this.settings.activeScale);
             
             if (Player.meta) Player.syncSub(); 
         },
@@ -1105,11 +1463,26 @@
             
             const frag = document.createDocumentFragment();
             const bookmarkedIndices = new Set(this.meta.bookmarks.map(b => b.subIndex));
+            
+            // Re-initialize segmenter and words array
+            App.words = [];
+            const segmenter = window.Intl && window.Intl.Segmenter ? new Intl.Segmenter('ja', { granularity: 'word' }) : null;
 
             this.subs.forEach((s, i) => {
                 const li = document.createElement('li'); 
                 li.id = `s-${i}`;
                 
+                // --- Anki Audio Send Column ---
+                const ankiCol = document.createElement('div');
+                ankiCol.className = 'star-col';
+                const ankiBtn = document.createElement('span');
+                ankiBtn.className = 'star-btn';
+                ankiBtn.textContent = '🔊';
+                ankiBtn.title = "Send audio to newest Anki card";
+                ankiBtn.onclick = (e) => { e.stopPropagation(); App.attachAudioFromSub(i, ankiBtn); };
+                ankiCol.appendChild(ankiBtn);
+                li.appendChild(ankiCol);
+
                 // --- Star Column ---
                 const starCol = document.createElement('div');
                 starCol.className = 'star-col';
@@ -1121,16 +1494,45 @@
                 starCol.appendChild(star);
                 li.appendChild(starCol);
 
-                // --- Text Column ---
+                // --- Text Column (Segmented) ---
                 const txtCol = document.createElement('div');
                 txtCol.className = 'text-container';
-                txtCol.textContent = s.text;
+                
+                if (segmenter) {
+                    const segments = segmenter.segment(s.text);
+                    let wordIndex = App.words.length; // Keep global index across all subtitles
+                    for (const { segment } of segments) {
+                        const span = document.createElement('span');
+                        span.className = 'word';
+                        span.textContent = segment;
+                        span.dataset.subIndex = i; // Link back to subtitle index
+                        
+                        // Let clicking a word seek like before, but prevent bubbling so we can select it later
+                        span.onclick = (e) => { 
+                            if (!App.navigationActive) {
+                                this.audio.currentTime = s.start + 0.001; 
+                            } else {
+                                e.stopPropagation();
+                                App.activeWordIndex = App.words.findIndex(w => w.element === span);
+                                App.updateWordHighlight();
+                            }
+                        };
+                        
+                        txtCol.appendChild(span);
+                        App.words.push({ element: span, text: segment, index: wordIndex++, subIndex: i });
+                    }
+                } else {
+                    // Fallback if Segmenter is not supported
+                    txtCol.textContent = s.text;
+                    li.onclick = () => { this.audio.currentTime = s.start + 0.001; };
+                }
+
                 li.appendChild(txtCol);
                 
-                // Click Behavior: Just Seek
-                li.onclick = () => { 
-                    this.audio.currentTime = s.start + 0.001;
-                };
+                // Click Behavior: Just Seek (if clicking empty space in li)
+                if (segmenter) {
+                     li.onclick = () => { this.audio.currentTime = s.start + 0.001; };
+                }
                 frag.appendChild(li);
             });
             this.elSubList.appendChild(frag);
@@ -1292,6 +1694,31 @@
             document.addEventListener('keydown', e => {
                 if (document.getElementById('view-player').classList.contains('hidden')) return;
                 const k = e.code;
+                
+                // Toggle Navigation Mode
+                if (k === 'KeyN') {
+                    App.navigationActive = !App.navigationActive;
+                    if (App.navigationActive) {
+                        Player.pause();
+                        document.getElementById('nav-indicator').classList.remove('hidden');
+                        const firstWordIdx = App.words.findIndex(w => w.subIndex === Player.activeIndex);
+                        if (firstWordIdx !== -1) App.activeWordIndex = firstWordIdx;
+                        App.updateWordHighlight();
+                    } else {
+                        document.getElementById('nav-indicator').classList.add('hidden');
+                        App.words.forEach(w => w.element.classList.remove('highlighted'));
+                    }
+                    return;
+                }
+
+                if (App.navigationActive) {
+                    if (k === 'ArrowLeft' || k === 'KeyA') { e.preventDefault(); App.moveWordLeft(); }
+                    else if (k === 'ArrowRight' || k === 'KeyD') { e.preventDefault(); App.moveWordRight(); }
+                    else if (k === 'Enter' || k === 'Space') { e.preventDefault(); App.triggerYomitan(); }
+                    else if (k === 'KeyC') { e.preventDefault(); App.triggerAnkiCard(); }
+                    return; // Interdict normal playback controls
+                }
+
                 if(k==='Space' || k==='KeyW') { e.preventDefault(); Player.togglePlay(); }
                 else if(k==='KeyA' || k==='ArrowLeft') Player.prevSub();
                 else if(k==='KeyD' || k==='ArrowRight') Player.nextSub();
@@ -1306,13 +1733,36 @@
         poll() {
             const gp = navigator.getGamepads()[0];
             if (gp) {
-                this.checkBtn(gp, 0, () => Player.togglePlay()); this.checkBtn(gp, 3, () => App.toggleFocusMode());
-                this.checkBtn(gp, 14, () => Player.prevSub()); this.checkBtn(gp, 15, () => Player.nextSub());
-                this.checkBtn(gp, 13, () => Player.replaySub()); this.checkBtn(gp, 4, () => Player.prevChap());
-                this.checkBtn(gp, 5, () => Player.nextChap()); this.checkBtn(gp, 7, () => Player.nextChap());
-                const axisX = gp.axes[0], axisY = gp.axes[1];
-                if (axisX < -0.5) this.triggerAxis('axLeft', () => Player.prevSub()); else if (axisX > 0.5) this.triggerAxis('axRight', () => Player.nextSub()); else { this.btns['axLeft'] = false; this.btns['axRight'] = false; }
-                if (axisY > 0.5) this.triggerAxis('axDown', () => Player.replaySub()); else this.btns['axDown'] = false;
+                // Toggle Navigation Mode (L2 Trigger / Button 6)
+                this.checkBtn(gp, 6, () => {
+                    App.navigationActive = !App.navigationActive;
+                    const navIndicator = document.getElementById('nav-indicator');
+                    if (App.navigationActive) {
+                        Player.pause();
+                        if (navIndicator) navIndicator.classList.remove('hidden');
+                        const firstWordIdx = App.words.findIndex(w => w.subIndex === Player.activeIndex);
+                        if (firstWordIdx !== -1) App.activeWordIndex = firstWordIdx;
+                        App.updateWordHighlight();
+                    } else {
+                        if (navIndicator) navIndicator.classList.add('hidden');
+                        App.words.forEach(w => w.element.classList.remove('highlighted'));
+                    }
+                });
+
+                if (App.navigationActive) {
+                    this.checkBtn(gp, 14, () => App.moveWordLeft()); // D-Pad Left
+                    this.checkBtn(gp, 15, () => App.moveWordRight()); // D-Pad Right
+                    this.checkBtn(gp, 0, () => App.triggerYomitan()); // A Button
+                    this.checkBtn(gp, 2, () => App.triggerAnkiCard()); // X Button
+                } else {
+                    this.checkBtn(gp, 0, () => Player.togglePlay()); this.checkBtn(gp, 3, () => App.toggleFocusMode());
+                    this.checkBtn(gp, 14, () => Player.prevSub()); this.checkBtn(gp, 15, () => Player.nextSub());
+                    this.checkBtn(gp, 13, () => Player.replaySub()); this.checkBtn(gp, 4, () => Player.prevChap());
+                    this.checkBtn(gp, 5, () => Player.nextChap()); this.checkBtn(gp, 7, () => Player.nextChap());
+                    const axisX = gp.axes[0], axisY = gp.axes[1];
+                    if (axisX < -0.5) this.triggerAxis('axLeft', () => Player.prevSub()); else if (axisX > 0.5) this.triggerAxis('axRight', () => Player.nextSub()); else { this.btns['axLeft'] = false; this.btns['axRight'] = false; }
+                    if (axisY > 0.5) this.triggerAxis('axDown', () => Player.replaySub()); else this.btns['axDown'] = false;
+                }
             }
             requestAnimationFrame(this.poll.bind(this));
         },
