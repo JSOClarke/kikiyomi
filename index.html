@@ -86,6 +86,9 @@
         .modal { background: var(--surface); padding: 25px; border-radius: var(--radius); width: 90%; max-width: 500px; border: 1px solid var(--border); box-shadow: 0 10px 25px rgba(0,0,0,0.2); max-height: 85vh; display: flex; flex-direction: column; }
         .setting-row { margin-bottom: 20px; display:flex; justify-content: space-between; align-items: center; }
         .setting-row label { color: var(--text); font-size: 0.9rem; flex: 1; }
+        .setting-section { margin-top: 25px; border-top: 1px solid var(--border); padding-top: 15px; }
+        .setting-section:first-of-type { border-top: none; margin-top: 0; padding-top: 0; }
+        .setting-section-title { font-size: 0.8rem; font-weight: bold; color: var(--primary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; opacity: 0.8; }
         .setting-hint { font-size: 0.7rem; color: var(--text-muted); margin-top: -15px; margin-bottom: 15px; line-height: 1.3; font-style: italic; }
         .setting-input-group { flex: 1; display:flex; justify-content: flex-end; align-items: center; gap: 10px; }
         select, input[type=number] { padding: 8px; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 4px; max-width: 100%; }
@@ -110,6 +113,17 @@
         .bm-book-title { color: var(--primary); font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
         .bm-del-btn { color: var(--text-muted); background: transparent; border: none; font-size: 1.2rem; cursor: pointer; padding: 5px 10px; }
         .bm-del-btn:hover { color: #ff5555; background: var(--surface-hover); border-radius: 4px; }
+
+        /* Stats Modal Styles */
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 10px; }
+        .stat-card { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 15px; display: flex; flex-direction: column; gap: 5px; }
+        .stat-val { font-size: 1.4rem; font-weight: bold; color: var(--primary); font-family: monospace; }
+        .stat-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+        .milestone-row { margin-top: 15px; background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; border-left: 3px solid var(--sec); }
+        .milestone-title { font-size: 0.85rem; font-weight: bold; color: var(--text); margin-bottom: 5px; }
+        .milestone-meta { font-size: 0.75rem; color: var(--text-muted); }
+        .stats-meter { height: 6px; background: var(--border); border-radius: 3px; margin-top: 8px; overflow: hidden; }
+        .stats-meter-fill { height: 100%; background: var(--primary); width: 0%; transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
 
         /* --- VIEW: LIBRARY --- */
         #view-library { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; align-items: center; max-width: 800px; margin: 0 auto; width: 100%; }
@@ -151,12 +165,12 @@
         /* Subtitles List */
         #sub-list { flex: 1; overflow-y: auto; padding: 50vh 0; margin: 0; list-style: none; scroll-behavior: auto; background: var(--bg); position: relative; }
         #sub-list li { 
-            /* Grid Layout for stability: Anki | Star | Text */
+            position: relative;
             display: grid; 
             grid-template-columns: 50px 50px 1fr; 
             align-items: center;
             min-height: 1.5em;
-            padding: 15px 0; /* Padding vertical only */
+            padding: 15px 0;
             margin: 0 auto; 
             max-width: 95%;
             color: #555; 
@@ -166,6 +180,23 @@
             line-height: 1.5; 
             user-select: text; -webkit-user-select: text; 
         }
+        .sub-progress {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: transparent;
+            pointer-events: none;
+        }
+        .sub-progress-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--primary);
+            opacity: 0.15;
+            transition: width 0.1s linear;
+        }
+        li.active .sub-progress-fill { opacity: 0.4; }
         
         #sub-list li .text-container {
             text-align: center;
@@ -298,6 +329,23 @@
             opacity: 1;
         }
         #focus-anki-btn.loading { opacity: 1; color: var(--warn); }
+        
+        #focus-progress {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(255,255,255,0.05);
+            z-index: 120;
+        }
+        #focus-progress-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--primary);
+            opacity: 0.3;
+            transition: width 0.1s linear;
+        }
     
         @media (max-width: 600px) {
             #chapter-list { width: 85%; }
@@ -360,20 +408,34 @@
     
     <!-- SETTINGS -->
     <div id="modal-settings" class="modal-overlay hidden" onclick="if(event.target===this) App.toggleModal('modal-settings')">
-        <div class="modal">
-            <h2 style="margin-top:0; color: var(--primary);">Settings</h2>
-            <div class="setting-row"><label>Theme</label><select id="opt-theme" onchange="App.applySettings()"><option value="kiku-dark">Kiku Dark</option><option value="kiku-light">Kiku Light</option><option value="matcha">Matcha (Green)</option></select></div>
-            <div class="setting-row"><label>Font Family</label><select id="opt-font" onchange="App.applySettings()"><option value="system-ui, -apple-system, sans-serif">System Sans</option><option value="'Times New Roman', serif">Serif</option><option value="'Hiragino Mincho ProN', 'Yu Mincho', serif">Yu Mincho (JP)</option><option value="'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif">Yu Gothic (JP)</option><option value="'Meiryo', sans-serif">Meiryo (JP)</option><option value="'MS Gothic', monospace">MS Gothic (JP)</option></select></div>
-            <div class="setting-row"><label>Font Size (px)</label><div class="setting-input-group"><input type="number" id="opt-size" min="12" max="80" value="36" onchange="App.applySettings()" style="width:70px"></div></div>
-            <div class="setting-row"><label>Focus Max Width (%)</label><div class="setting-input-group"><input type="number" id="opt-focus-width" min="50" max="100" value="90" onchange="App.applySettings()" style="width:70px"></div></div>
-            <div class="setting-row"><label>Active Line Scale</label><div class="setting-input-group"><input type="number" id="opt-active-scale" min="1.0" max="2.0" step="0.05" value="1.05" onchange="App.applySettings()" style="width:70px"></div></div>
-            <div class="setting-row"><label>Bold Active Line</label><input type="checkbox" id="opt-bold" onchange="App.applySettings()" style="width:20px; height:20px; accent-color: var(--primary);"></div>
-            <div class="setting-row"><label>Anki Audio Field</label><div class="setting-input-group"><input type="text" id="opt-anki-field" value="Sentence Audio" onchange="App.applySettings()" style="width:160px"></div></div>
-            <div class="setting-row"><label>Anki Picture Field</label><div class="setting-input-group"><input type="text" id="opt-anki-pic-field" value="Picture" onchange="App.applySettings()" style="width:160px"></div></div>
-            <div class="setting-hint">Note: AnkiConnect will <b>append</b> to these fields, not overwrite them.</div>
-            <div class="setting-row"><label>Add Cover Art to Card</label><input type="checkbox" id="opt-anki-add-cover" checked onchange="App.applySettings()" style="width:20px; height:20px; accent-color: var(--primary);"></div>
-            <div class="setting-row"><label>Fill Silence (Gaps)</label><input type="checkbox" id="opt-fill" checked onchange="App.applySettings()" style="width:20px; height:20px; accent-color: var(--primary);"></div>
-            <div style="text-align: right; margin-top:20px;"><button class="btn btn-primary" onclick="App.toggleModal('modal-settings')">Done</button></div>
+        <div class="modal" style="max-height: 85vh; overflow-y: auto;">
+            <h2 style="margin-top:0; color: var(--primary); margin-bottom: 25px;">Settings</h2>
+            
+            <div class="setting-section">
+                <div class="setting-section-title">Reader UI</div>
+                <div class="setting-row"><label>Theme</label><select id="opt-theme" onchange="App.applySettings()"><option value="kiku-dark">Kiku Dark</option><option value="kiku-light">Kiku Light</option><option value="matcha">Matcha (Green)</option></select></div>
+                <div class="setting-row"><label>Font Family</label><select id="opt-font" onchange="App.applySettings()"><option value="system-ui, -apple-system, sans-serif">System Sans</option><option value="'Times New Roman', serif">Serif</option><option value="'Hiragino Mincho ProN', 'Yu Mincho', serif">Yu Mincho (JP)</option><option value="'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif">Yu Gothic (JP)</option><option value="'Meiryo', sans-serif">Meiryo (JP)</option><option value="'MS Gothic', monospace">MS Gothic (JP)</option></select></div>
+                <div class="setting-row"><label>Font Size (px)</label><div class="setting-input-group"><input type="number" id="opt-size" min="12" max="80" value="36" onchange="App.applySettings()" style="width:70px"></div></div>
+                <div class="setting-row"><label>Focus Max Width (%)</label><div class="setting-input-group"><input type="number" id="opt-focus-width" min="50" max="100" value="90" onchange="App.applySettings()" style="width:70px"></div></div>
+                <div class="setting-row"><label>Active Line Scale</label><div class="setting-input-group"><input type="number" id="opt-active-scale" min="1.0" max="2.0" step="0.05" value="1.05" onchange="App.applySettings()" style="width:70px"></div></div>
+                <div class="setting-row"><label>Bold Active Line</label><input type="checkbox" id="opt-bold" onchange="App.applySettings()" style="width:20px; height:20px; accent-color: var(--primary);"></div>
+                <div class="setting-row"><label>Show Subtitle Progress</label><input type="checkbox" id="opt-sub-progress" checked onchange="App.applySettings()" style="width:20px; height:20px; accent-color: var(--primary);"></div>
+            </div>
+
+            <div class="setting-section">
+                <div class="setting-section-title">Anki Enhancements</div>
+                <div class="setting-row"><label>Anki Audio Field</label><div class="setting-input-group"><input type="text" id="opt-anki-field" value="Sentence Audio" onchange="App.applySettings()" style="width:160px"></div></div>
+                <div class="setting-row"><label>Anki Picture Field</label><div class="setting-input-group"><input type="text" id="opt-anki-pic-field" value="Picture" onchange="App.applySettings()" style="width:160px"></div></div>
+                <div class="setting-hint">Note: AnkiConnect will <b>append</b> to these fields, not overwrite them.</div>
+                <div class="setting-row"><label>Add Cover Art to Card</label><input type="checkbox" id="opt-anki-add-cover" checked onchange="App.applySettings()" style="width:20px; height:20px; accent-color: var(--primary);"></div>
+            </div>
+
+            <div class="setting-section">
+                <div class="setting-section-title">Playback</div>
+                <div class="setting-row"><label>Fill Silence (Gaps)</label><input type="checkbox" id="opt-fill" checked onchange="App.applySettings()" style="width:20px; height:20px; accent-color: var(--primary);"></div>
+            </div>
+
+            <div style="text-align: right; margin-top:30px;"><button class="btn btn-primary" onclick="App.toggleModal('modal-settings')">Done</button></div>
         </div>
     </div>
     
@@ -395,6 +457,44 @@
         </div>
     </div>
 
+    <!-- STATS MODAL -->
+    <div id="modal-stats" class="modal-overlay hidden" onclick="if(event.target===this) App.toggleModal('modal-stats')">
+        <div class="modal">
+            <h2 style="margin-top:0; color: var(--primary);">Statistics</h2>
+            <div id="stats-book-title" style="font-size:0.9rem; color:var(--text-muted); margin-top:-15px; margin-bottom:20px;">Current Book</div>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Words Read</div>
+                    <div class="stat-val" id="stat-words">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Time Spent</div>
+                    <div class="stat-val" id="stat-time">0m</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Speed</div>
+                    <div class="stat-val" id="stat-speed">0 <span style="font-size:0.8rem; font-weight:normal;">wpm</span></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Progress</div>
+                    <div class="stat-val" id="stat-pct">0%</div>
+                </div>
+            </div>
+
+            <div class="stats-meter"><div class="stats-meter-fill" id="stat-meter"></div></div>
+
+            <div id="milestone-container">
+                <div class="milestone-row">
+                    <div class="milestone-title">Finish Book</div>
+                    <div class="milestone-meta" id="milestone-text">Keep listening to calculate projection...</div>
+                </div>
+            </div>
+
+            <div style="text-align: right; margin-top:25px;"><button class="btn btn-primary" onclick="App.toggleModal('modal-stats')">Done</button></div>
+        </div>
+    </div>
+
     <!-- HELP -->
     <div id="modal-help" class="modal-overlay hidden" onclick="if(event.target===this) App.toggleModal('modal-help')">
         <div class="modal">
@@ -406,9 +506,8 @@
                 <tr><td>Prev / Next Chap</td><td>Q / E / (GP: L1/R1)</td></tr>
                 <tr><td>Toggle Focus</td><td>F / (GP: Y)</td></tr>
                 <tr><td>Word Nav Mode</td><td>N / (GP: L2)</td></tr>
-                <tr><td>Word Nav (When Active)</td><td>A/D / (GP: Left/Right)</td></tr>
+                <tr><td>Word Nav (When Active)</td><td>B/M / (GP: Left/Right)</td></tr>
                 <tr><td>Yomitan (When Active)</td><td>Enter/Space / (GP: A)</td></tr>
-                <tr><td>Add Anki Card (When Active)</td><td>C / (GP: X)</td></tr>
                 <tr><td>Exit Focus</td><td>Esc / Hold Click</td></tr>
             </table>
             <div style="text-align: right; margin-top:20px;"><button class="btn btn-primary" onclick="App.toggleModal('modal-help')">Got it</button></div>
@@ -446,6 +545,7 @@
                 <span id="nav-indicator" class="nav-badge hidden">WORD NAV</span>
             </div>
             <div style="display:flex; align-items: center; z-index: 2;">
+                <button class="btn" onclick="App.showStats()" style="margin-right:5px" title="Statistics">📊 Stats</button>
                 <button class="btn" onclick="App.showBookmarks()" style="margin-right:5px">★</button>
                 <button class="btn" onclick="App.toggleChapters()" style="margin-right:5px">Chapters</button>
                 <button class="btn" onclick="App.toggleFocusMode()" style="margin-right:5px">Focus</button>
@@ -485,6 +585,7 @@
         <div id="focus-text">...</div>
         <div id="focus-hint">Tap Center: Play • Tap Sides: Seek • Hold/Esc: Exit</div>
         <div id="focus-anki-btn" class="star-btn" title="Enhance recent Anki card" onclick="event.stopPropagation(); App.attachAudioFromSub(Player.activeIndex, this)">◆</div>
+        <div id="focus-progress"><div id="focus-progress-fill"></div></div>
     </div>
     
     <audio id="audio-el" hidden></audio>
@@ -912,7 +1013,8 @@
         currentBook: null, activeAudioBlob: null,
         words: [], activeWordIndex: 0, navigationActive: false,
         activeCoverFilename: null, // Cached Anki media filename for the current book's cover
-        settings: { font: '', size: 36, fillGap: true, bold: false, focusWidth: 90, activeScale: 1.05, ankiField: 'Sentence Audio', ankiPictureField: 'Picture', ankiAddCover: true },
+        sessionStartTime: null, // To track time spent in current session
+        settings: { font: '', size: 36, fillGap: true, bold: false, focusWidth: 90, activeScale: 1.05, ankiField: 'Sentence Audio', ankiPictureField: 'Picture', ankiAddCover: true, showSubProgress: true },
         showToast(message, type = 'success', duration = 3000) {
             const toast = document.getElementById('toast');
             toast.textContent = message;
@@ -1102,6 +1204,7 @@
             this.settings.ankiField = localStorage.getItem('ky_anki_field') || "Sentence Audio";
             this.settings.ankiPictureField = localStorage.getItem('ky_anki_pic_field') || "Picture";
             this.settings.ankiAddCover = localStorage.getItem('ky_anki_add_cover') !== "false";
+            this.settings.showSubProgress = localStorage.getItem('ky_sub_progress') !== "false";
     
             document.getElementById('opt-theme').value = this.settings.theme;
             document.getElementById('opt-font').value = this.settings.font;
@@ -1113,6 +1216,7 @@
             document.getElementById('opt-anki-field').value = this.settings.ankiField;
             document.getElementById('opt-anki-pic-field').value = this.settings.ankiPictureField;
             document.getElementById('opt-anki-add-cover').checked = this.settings.ankiAddCover;
+            document.getElementById('opt-sub-progress').checked = this.settings.showSubProgress;
             this.applySettings(true);
         },
         applySettings(isLoad=false) {
@@ -1127,6 +1231,7 @@
                 this.settings.ankiField = document.getElementById('opt-anki-field').value.trim();
                 this.settings.ankiPictureField = document.getElementById('opt-anki-pic-field').value.trim();
                 this.settings.ankiAddCover = document.getElementById('opt-anki-add-cover').checked;
+                this.settings.showSubProgress = document.getElementById('opt-sub-progress').checked;
         
                 localStorage.setItem('ky_theme', this.settings.theme);
                 localStorage.setItem('ky_font', this.settings.font);
@@ -1138,6 +1243,7 @@
                 localStorage.setItem('ky_anki_field', this.settings.ankiField);
                 localStorage.setItem('ky_anki_pic_field', this.settings.ankiPictureField);
                 localStorage.setItem('ky_anki_add_cover', this.settings.ankiAddCover);
+                localStorage.setItem('ky_sub_progress', this.settings.showSubProgress);
             }
     
             document.documentElement.setAttribute('data-theme', this.settings.theme);
@@ -1436,7 +1542,67 @@
         launchPlayer(seekTo = null) {
             document.getElementById('view-library').classList.add('hidden');
             document.getElementById('view-player').classList.remove('hidden');
+            this.sessionStartTime = Date.now();
             Player.load(this.currentBook, this.activeAudioBlob, seekTo);
+        },
+        showStats() {
+            if (!this.currentBook) return alert("Load a book first to see statistics.");
+            this.toggleModal('modal-stats');
+            
+            const meta = this.currentBook;
+            const subs = Player.subs || [];
+            
+            // --- Calculate Words ---
+            let totalWords = 0;
+            let wordsRead = 0;
+            subs.forEach((s, idx) => {
+                const count = this.countWords(s.text);
+                totalWords += count;
+                if (idx <= Player.activeIndex) wordsRead += count;
+            });
+
+            // --- Calculate Time ---
+            const sessionSpent = (Date.now() - this.sessionStartTime) / 60000; // minutes
+            const prevSpent = meta.timeSpent || 0;
+            const totalSpent = prevSpent + sessionSpent;
+
+            // --- Calculate Speed (WPM) ---
+            const wpm = totalSpent > 0 ? Math.round(wordsRead / totalSpent) : 0;
+            
+            // --- Calculate Projections ---
+            const remainingWords = totalWords - wordsRead;
+            const minsLeft = wpm > 0 ? Math.round(remainingWords / wpm) : 0;
+            
+            const pct = totalWords > 0 ? Math.round((wordsRead / totalWords) * 100) : 0;
+
+            // --- Update UI ---
+            document.getElementById('stats-book-title').textContent = meta.title;
+            document.getElementById('stat-words').textContent = wordsRead.toLocaleString();
+            document.getElementById('stat-time').textContent = Math.round(totalSpent) + "m";
+            document.getElementById('stat-speed').innerHTML = `${wpm} <span style="font-size:0.8rem; font-weight:normal;">wpm</span>`;
+            document.getElementById('stat-pct').textContent = pct + "%";
+            document.getElementById('stat-meter').style.width = pct + "%";
+            
+            const mText = document.getElementById('milestone-text');
+            if (wpm > 0 && remainingWords > 0) {
+                const h = Math.floor(minsLeft / 60);
+                const m = minsLeft % 60;
+                mText.textContent = `Estimated ${h > 0 ? h + 'h ' : ''}${m}m to finish book at your current speed.`;
+            } else if (remainingWords === 0) {
+                mText.textContent = "Congratulations! You've finished this book.";
+            } else {
+                mText.textContent = "Listen for a few more minutes to calculate projection...";
+            }
+        },
+        countWords(text) {
+            if (!text) return 0;
+            // For Japanese/Chinese: count characters (excluding punctuation)
+            // For others: count space-separated words
+            const jpCnRegex = /[\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\uff00-\uff9f\u4e00-\u9faf\u3400-\u4dbf]/;
+            if (jpCnRegex.test(text)) {
+                return text.replace(/[、。！？\s]/g, '').length;
+            }
+            return text.trim().split(/\s+/).length;
         },
         showLibrary() {
             Player.pause();
@@ -1481,6 +1647,43 @@
         elBtnPlay: document.getElementById('btn-play'), elFocusText: document.getElementById('focus-text'),
         elFocusAnkiBtn: document.getElementById('focus-anki-btn'),
         elChapList: document.getElementById('chapter-list'),
+        animId: null,
+        updateProgressBars() {
+            if (!App.settings.showSubProgress) {
+                // Hide bars if disabled
+                const fsb = document.getElementById('focus-progress-fill');
+                if (fsb) fsb.style.width = "0%";
+                if (this.activeIndex !== -1) {
+                    const sb = document.getElementById(`sb-${this.activeIndex}`);
+                    if (sb) sb.style.width = "0%";
+                }
+                return;
+            }
+            const t = this.audio.currentTime;
+            
+            // Subtitle Progress
+            if (this.activeIndex !== -1) {
+                const s = this.subs[this.activeIndex];
+                const pct = Math.min(100, Math.max(0, ((t - s.start) / (s.end - s.start)) * 100));
+                const sb = document.getElementById(`sb-${this.activeIndex}`);
+                if (sb) sb.style.width = pct + "%";
+                const fsb = document.getElementById('focus-progress-fill');
+                if (fsb) fsb.style.width = pct + "%";
+            } else {
+                const fsb = document.getElementById('focus-progress-fill');
+                if (fsb) fsb.style.width = "0%";
+            }
+
+            // Main Seek Bar Smoothness
+            if (!this.isSeeking && this.audio.duration > 0) {
+                this.elFill.style.width = (t / this.audio.duration * 100) + "%";
+            }
+        },
+        animate() {
+            if (this.audio.paused) return;
+            this.updateProgressBars();
+            this.animId = requestAnimationFrame(() => this.animate());
+        },
     
         load(meta, blob, seekTo = null) {
             this.meta = meta; this.subs = meta.subs || [];
@@ -1507,8 +1710,12 @@
                 this.syncSub(); this.syncChapterActive();
                 if (Math.floor(this.audio.currentTime) % 10 === 0) this.save();
             };
-            this.audio.onplay = () => this.updateBtn();
-            this.audio.onpause = () => { this.updateBtn(); this.save(); };
+            this.audio.onplay = () => { this.updateBtn(); this.animate(); };
+            this.audio.onpause = () => { 
+                this.updateBtn(); 
+                this.save(); 
+                if (this.animId) cancelAnimationFrame(this.animId);
+            };
         },
         renderSubs() {
             this.elSubList.innerHTML = '';
@@ -1595,6 +1802,15 @@
                 }
 
                 li.appendChild(txtCol);
+                
+                // --- Progress Bar ---
+                const progress = document.createElement('div');
+                progress.className = 'sub-progress';
+                const fill = document.createElement('div');
+                fill.className = 'sub-progress-fill';
+                fill.id = `sb-${i}`;
+                progress.appendChild(fill);
+                li.appendChild(progress);
                 
                 // Click Behavior: Just Seek (if clicking empty space in li)
                 if (segmenter) {
@@ -1685,7 +1901,11 @@
             }
 
             if (idx !== this.activeIndex) {
-                if (this.activeIndex !== -1) document.getElementById(`s-${this.activeIndex}`)?.classList.remove('active');
+                if (this.activeIndex !== -1) {
+                    document.getElementById(`s-${this.activeIndex}`)?.classList.remove('active');
+                    const oldSb = document.getElementById(`sb-${this.activeIndex}`);
+                    if (oldSb) oldSb.style.width = "0%";
+                }
                 this.activeIndex = idx;
                 let text = "...";
                 if (idx !== -1) {
@@ -1697,6 +1917,8 @@
                 }
                 this.elFocusText.textContent = text;
             }
+
+            // Update Progress Bars (This logic is now handled in animate() for smoothness)
         },
         currentChapIdx: -1,
         syncChapterActive() {
@@ -1758,7 +1980,21 @@
             if (target > -1) this.audio.currentTime = this.getChapTime(chaps[target]);
         },
         updateBtn() { this.elBtnPlay.textContent = this.audio.paused ? "▶" : "❚❚"; },
-        save() { if (!this.meta) return; this.meta.progress = this.audio.currentTime; this.meta.lastPlayed = Date.now(); DB.saveMetadata(this.meta); },
+        save() { 
+        if (!this.meta) return; 
+        this.meta.progress = this.audio.currentTime; 
+        this.meta.lastPlayed = Date.now(); 
+        
+        // Update time spent
+        if (App.sessionStartTime) {
+            const now = Date.now();
+            const sessionSpent = (now - App.sessionStartTime);
+            this.meta.timeSpent = (this.meta.timeSpent || 0) + (sessionSpent / 60000);
+            App.sessionStartTime = now; // Reset for next chunk
+        }
+        
+        DB.saveMetadata(this.meta); 
+    },
         isSeeking: false
     };
     
@@ -1766,8 +2002,17 @@
     const seekFill = document.getElementById('seek-fill');
     seekBar.addEventListener('mousedown', () => Player.isSeeking = true);
     seekBar.addEventListener('touchstart', () => Player.isSeeking = true);
-    seekBar.addEventListener('change', (e) => { Player.audio.currentTime = e.target.value; Player.isSeeking = false; if(Player.audio.duration) seekFill.style.width = (Player.audio.currentTime / Player.audio.duration * 100) + "%"; });
-    seekBar.addEventListener('input', (e) => { document.getElementById('t-curr').textContent = Utils.fmtTime(e.target.value); if(Player.audio.duration) seekFill.style.width = (e.target.value / Player.audio.duration * 100) + "%"; });
+    seekBar.addEventListener('change', (e) => { 
+        Player.audio.currentTime = e.target.value; 
+        Player.isSeeking = false; 
+        if(Player.audio.duration) seekFill.style.width = (Player.audio.currentTime / Player.audio.duration * 100) + "%";
+        Player.updateProgressBars(); // Immediate update on seek
+    });
+    seekBar.addEventListener('input', (e) => { 
+        document.getElementById('t-curr').textContent = Utils.fmtTime(e.target.value); 
+        if(Player.audio.duration) seekFill.style.width = (e.target.value / Player.audio.duration * 100) + "%";
+        Player.updateProgressBars(); // Immediate update on seek
+    });
     
     const focusView = document.getElementById('view-focus');
     let longPressTimer;
@@ -1806,8 +2051,8 @@
                 }
 
                 if (App.navigationActive) {
-                    if (k === 'ArrowLeft' || k === 'KeyA') { e.preventDefault(); App.moveWordLeft(); }
-                    else if (k === 'ArrowRight' || k === 'KeyD') { e.preventDefault(); App.moveWordRight(); }
+                    if (k === 'ArrowLeft' || k === 'KeyB') { e.preventDefault(); App.moveWordLeft(); }
+                    else if (k === 'ArrowRight' || k === 'KeyM') { e.preventDefault(); App.moveWordRight(); }
                     else if (k === 'Enter' || k === 'Space') { e.preventDefault(); App.triggerYomitan(); }
                     else if (k === 'KeyC') { e.preventDefault(); App.triggerAnkiCard(); }
                     return; // Interdict normal playback controls
