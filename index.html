@@ -338,6 +338,7 @@
             <div class="setting-row"><label>Active Line Scale</label><div class="setting-input-group"><input type="number" id="opt-active-scale" min="1.0" max="2.0" step="0.05" value="1.05" onchange="App.applySettings()" style="width:70px"></div></div>
             <div class="setting-row"><label>Bold Active Line</label><input type="checkbox" id="opt-bold" onchange="App.applySettings()" style="width:20px; height:20px; accent-color: var(--primary);"></div>
             <div class="setting-row"><label>Anki Audio Field</label><div class="setting-input-group"><input type="text" id="opt-anki-field" value="Sentence Audio" onchange="App.applySettings()" style="width:160px"></div></div>
+            <div class="setting-row"><label>Anki Picture Field</label><div class="setting-input-group"><input type="text" id="opt-anki-pic-field" value="Picture" onchange="App.applySettings()" style="width:160px"></div></div>
             <div class="setting-row"><label>Fill Silence (Gaps)</label><input type="checkbox" id="opt-fill" checked onchange="App.applySettings()" style="width:20px; height:20px; accent-color: var(--primary);"></div>
             <div style="text-align: right; margin-top:20px;"><button class="btn btn-primary" onclick="App.toggleModal('modal-settings')">Done</button></div>
         </div>
@@ -680,13 +681,9 @@
     
     const AudioUtils = {
         async getAudioSnippetBase64(file, startTime, endTime) {
-            console.log("AudioUtils.getAudioSnippetBase64 START", file.name, startTime, endTime);
             // Cap duration at 15s to be safe
             const duration = Math.min(endTime - startTime, 15.0);
-            if (duration <= 0) {
-                console.error("Invalid audio duration:", duration);
-                throw new Error("Invalid duration");
-            }
+            if (duration <= 0) throw new Error("Invalid duration");
 
             return new Promise((resolve, reject) => {
                 const audio = new Audio();
@@ -698,72 +695,50 @@
                 const audioCtx = new AudioContext();
                 const source = audioCtx.createMediaElementSource(audio);
                 const dest = audioCtx.createMediaStreamDestination();
-                source.connect(dest); // Silent recording (not connected to audioCtx.destination)
+                source.connect(dest);
 
-                // Anki's backend uses mpv which supports webm/opus natively
                 const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm';
-                console.log("Using MIME type for MediaRecorder:", mimeType);
                 const recorder = new MediaRecorder(dest.stream, { mimeType });
                 const chunks = [];
 
                 recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
                 recorder.onstop = () => {
-                    console.log("MediaRecorder stopped, processing chunks...", chunks.length);
                     audio.pause();
                     source.disconnect();
                     audioCtx.close();
                     URL.revokeObjectURL(url);
-                    
                     const rawBlob = new Blob(chunks, { type: mimeType });
                     const reader = new FileReader();
                     reader.readAsDataURL(rawBlob);
                     reader.onloadend = () => {
-                        console.log("FileReader finished reading base64 data");
                         const base64data = reader.result.split(',')[1];
                         resolve({ base64: base64data, ext: 'webm' });
                     };
                 };
 
                 audio.onseeked = () => {
-                    console.log("Audio seeked to start time, beginning playback & recording...");
                     audio.play().then(() => {
                         recorder.start();
-                        setTimeout(() => {
-                            console.log("Duration reached, stopping recorder...");
-                            recorder.stop();
-                        }, duration * 1000);
-                    }).catch(e => {
-                        console.error("Audio playback failed during recording", e);
-                        audioCtx.close();
-                        reject(e);
-                    });
+                        setTimeout(() => recorder.stop(), duration * 1000);
+                    }).catch(e => { audioCtx.close(); reject(e); });
                 };
-                audio.onerror = (e) => { 
-                    console.error("Audio element error", e);
-                    audioCtx.close(); 
-                    reject(e); 
-                };
+                audio.onerror = (e) => { audioCtx.close(); reject(e); };
             });
         }
     };
 
     const AnkiConnect = {
         async invoke(action, params = {}) {
-            console.log(`AnkiConnect invoking: ${action}`, params);
             try {
                 const response = await fetch('http://127.0.0.1:8765', {
                     method: 'POST',
                     body: JSON.stringify({ action, version: 6, params })
                 });
                 const result = await response.json();
-                if (result.error) {
-                    console.error("AnkiConnect Error from API:", result.error);
-                    throw new Error(result.error);
-                }
-                console.log(`AnkiConnect result for ${action}:`, result.result);
+                if (result.error) throw new Error(result.error);
                 return result.result;
             } catch (e) {
-                console.warn ("AnkiConnect Exception:", e);
+                console.warn("AnkiConnect:", e.message);
                 return null;
             }
         },
@@ -781,8 +756,6 @@
             if (!noteInfo || noteInfo.length === 0) return false;
             
             const fields = noteInfo[0].fields;
-            console.log("📋 Available Anki note fields:", Object.keys(fields));
-            console.log("🎯 Configured target field:", targetField);
 
             // Use the user-configured field if it exists on the note, otherwise auto-detect
             let audioField = targetField && fields[targetField] !== undefined ? targetField : null;
@@ -809,6 +782,46 @@
                 note: { id: noteId, fields: { [audioField]: newContent } }
             });
             return audioField; // Return field name for toast message
+        },
+        async addCoverToCard(cardId, coverBlob, storedFilename, targetField) {
+            // Gets the note and updates the picture field with an <img> tag
+            const cardInfo = await this.invoke('cardsInfo', { cards: [cardId] });
+            if (!cardInfo || cardInfo.length === 0) return false;
+            const noteId = cardInfo[0].note;
+            const noteInfo = await this.invoke('notesInfo', { notes: [noteId] });
+            if (!noteInfo || noteInfo.length === 0) return false;
+            const fields = noteInfo[0].fields;
+
+            let picField = targetField && fields[targetField] !== undefined ? targetField : null;
+            if (!picField) {
+                for (const key of Object.keys(fields)) {
+                    if (key.toLowerCase().includes('picture') || key.toLowerCase().includes('image') || key.toLowerCase().includes('photo')) {
+                        picField = key; break;
+                    }
+                }
+            }
+            if (!picField) return false;
+
+            // Upload if not already cached
+            let filename = storedFilename;
+            if (!filename) {
+                const base64 = await new Promise((res, rej) => {
+                    const reader = new FileReader();
+                    reader.readAsDataURL(coverBlob);
+                    reader.onloadend = () => res(reader.result.split(',')[1]);
+                    reader.onerror = rej;
+                });
+                const ext = coverBlob.type.includes('png') ? 'png' : 'jpg';
+                const proposed = `kikiyomi_cover_${Date.now()}.${ext}`;
+                filename = await this.invoke('storeMediaFile', { filename: proposed, data: base64 });
+                if (!filename) return false;
+            }
+
+            const imgTag = `<img src="${filename}">`;
+            await this.invoke('updateNoteFields', {
+                note: { id: noteId, fields: { [picField]: imgTag } }
+            });
+            return filename; // Return stored filename for caching
         }
     };
     
@@ -864,7 +877,8 @@
     const App = {
         currentBook: null, activeAudioBlob: null,
         words: [], activeWordIndex: 0, navigationActive: false,
-        settings: { font: '', size: 36, fillGap: true, bold: false, focusWidth: 90, activeScale: 1.05, ankiField: 'Sentence Audio' },
+        activeCoverFilename: null, // Cached Anki media filename for the current book's cover
+        settings: { font: '', size: 36, fillGap: true, bold: false, focusWidth: 90, activeScale: 1.05, ankiField: 'Sentence Audio', ankiPictureField: 'Picture' },
         showToast(message, type = 'success', duration = 3000) {
             const toast = document.getElementById('toast');
             toast.textContent = message;
@@ -973,45 +987,46 @@
             setTimeout(() => targetElement.style.transform = 'scale(1)', 150);
         },
         attachAudioFromSub(subIndex, btnElement) {
-            console.log("attachAudioFromSub clicked for subIndex:", subIndex);
-            if (!App.activeAudioBlob || !Player.subs || !Player.subs[subIndex]) {
-                console.warn("attachAudioFromSub early exit: Missing audio blob or subtitles", { blob: App.activeAudioBlob, subs: Player.subs, sub: Player.subs?.[subIndex] });
-                return;
-            }
+            if (!App.activeAudioBlob || !Player.subs || !Player.subs[subIndex]) return;
             const sub = Player.subs[subIndex];
-            console.log("Selected subtitle:", sub);
             
             const originalColor = btnElement.style.color;
             btnElement.style.color = 'var(--warn)';
             const endTime = sub.end || (sub.start + 5.0);
             
-            console.log(`Requesting audio extraction from ${sub.start} to ${endTime}`);
             AudioUtils.getAudioSnippetBase64(App.activeAudioBlob, sub.start, endTime).then(async (audioData) => {
-                console.log("Audio snippet extracted successfully, querying AnkiConnect for latest card...");
                 const cardId = await AnkiConnect.getLastCreatedCardId();
                 if (cardId) {
-                    console.log(`Found recent Anki card ID: ${cardId}, attempting to add audio...`);
                     const filename = `kikiyomi_audio_${Date.now()}.${audioData.ext}`;
                     const fieldUsed = await AnkiConnect.addAudioToCard(cardId, audioData.base64, filename, App.settings.ankiField);
                     if(fieldUsed) {
-                        console.log("Successfully attached audio to card!");
                         btnElement.style.color = 'var(--sec)';
                         setTimeout(() => btnElement.style.color = originalColor, 2000);
                         App.showToast(`✅ Audio added to "${fieldUsed}"`, 'success');
+
+                        // Also attach cover art if available
+                        const cover = App.currentBook?.cover;
+                        if (cover?.blob) {
+                            AnkiConnect.addCoverToCard(
+                                cardId, cover.blob,
+                                App.activeCoverFilename, // null on first call, cached filename afterwards
+                                App.settings.ankiPictureField
+                            ).then(storedName => {
+                                if (storedName) App.activeCoverFilename = storedName;
+                            });
+                        }
                     } else {
-                        console.error("AnkiConnect returned false when adding audio to the card fields");
                         btnElement.style.color = 'red';
                         setTimeout(() => btnElement.style.color = originalColor, 2000);
                         App.showToast('❌ Failed to update card fields', 'error');
                     }
                 } else {
-                    console.warn("AnkiConnect could not find a recently created card.");
                     btnElement.style.color = 'orange';
                     setTimeout(() => btnElement.style.color = originalColor, 2000);
                     App.showToast('⚠️ No recent Anki card found', 'error');
                 }
             }).catch(e => {
-                console.error("Audio extraction failed entirely:", e);
+                console.error("Audio extraction failed:", e);
                 btnElement.style.color = 'red';
                 setTimeout(() => btnElement.style.color = originalColor, 2000);
                 App.showToast('❌ Audio extraction error', 'error');
@@ -1042,6 +1057,7 @@
             this.settings.focusWidth = parseInt(localStorage.getItem('ky_focus_width') || "90");
             this.settings.activeScale = parseFloat(localStorage.getItem('ky_active_scale') || "1.05");
             this.settings.ankiField = localStorage.getItem('ky_anki_field') || "Sentence Audio";
+            this.settings.ankiPictureField = localStorage.getItem('ky_anki_pic_field') || "Picture";
     
             document.getElementById('opt-theme').value = this.settings.theme;
             document.getElementById('opt-font').value = this.settings.font;
@@ -1051,6 +1067,7 @@
             document.getElementById('opt-focus-width').value = this.settings.focusWidth;
             document.getElementById('opt-active-scale').value = this.settings.activeScale;
             document.getElementById('opt-anki-field').value = this.settings.ankiField;
+            document.getElementById('opt-anki-pic-field').value = this.settings.ankiPictureField;
             this.applySettings(true);
         },
         applySettings(isLoad=false) {
@@ -1063,6 +1080,7 @@
                 this.settings.focusWidth = parseInt(document.getElementById('opt-focus-width').value);
                 this.settings.activeScale = parseFloat(document.getElementById('opt-active-scale').value);
                 this.settings.ankiField = document.getElementById('opt-anki-field').value.trim();
+                this.settings.ankiPictureField = document.getElementById('opt-anki-pic-field').value.trim();
         
                 localStorage.setItem('ky_theme', this.settings.theme);
                 localStorage.setItem('ky_font', this.settings.font);
@@ -1072,6 +1090,7 @@
                 localStorage.setItem('ky_focus_width', this.settings.focusWidth);
                 localStorage.setItem('ky_active_scale', this.settings.activeScale);
                 localStorage.setItem('ky_anki_field', this.settings.ankiField);
+                localStorage.setItem('ky_anki_pic_field', this.settings.ankiPictureField);
             }
     
             document.documentElement.setAttribute('data-theme', this.settings.theme);
@@ -1588,24 +1607,42 @@
         },
         activeIndex: -1,
         syncSub() {
-            const t = this.audio.currentTime; let idx = -1;
-            for (let i = 0; i < this.subs.length; i++) { if (t >= this.subs[i].start && t <= this.subs[i].end) { idx = i; break; } }
-            if (idx === -1 && App.settings.fillGap && this.subs.length > 0) {
-                for (let i = 0; i < this.subs.length - 1; i++) {
-                    if (t > this.subs[i].end && t < this.subs[i+1].start) {
-                        const mid = (this.subs[i].end + this.subs[i+1].start) / 2;
-                        if (t < mid) idx = i; else idx = i + 1; break;
-                    }
-                }
-                if (idx === -1 && t > this.subs[this.subs.length-1].end) idx = this.subs.length - 1;
+            const t = this.audio.currentTime;
+            const subs = this.subs;
+            if (subs.length === 0) return;
+
+            // Binary search for the subtitle containing t
+            let lo = 0, hi = subs.length - 1, idx = -1;
+            while (lo <= hi) {
+                const mid = (lo + hi) >> 1;
+                if (t < subs[mid].start)      hi = mid - 1;
+                else if (t > subs[mid].end)   lo = mid + 1;
+                else { idx = mid; break; }
             }
+
+            // Fill-gap mode: find nearest subtitle in a gap
+            if (idx === -1 && App.settings.fillGap) {
+                // After binary search, `lo` is the index of the first sub that starts after t
+                // so the gap (if any) is between subs[lo-1] and subs[lo]
+                const after = lo;  // first sub starting after t
+                const before = lo - 1; // last sub that ended before t
+                if (before >= 0 && after < subs.length) {
+                    const mid = (subs[before].end + subs[after].start) / 2;
+                    idx = (t < mid) ? before : after;
+                } else if (before >= 0) {
+                    idx = before; // past last sub
+                } else if (after < subs.length) {
+                    idx = after; // before first sub
+                }
+            }
+
             if (idx !== this.activeIndex) {
                 if (this.activeIndex !== -1) document.getElementById(`s-${this.activeIndex}`)?.classList.remove('active');
                 this.activeIndex = idx;
                 let text = "...";
                 if (idx !== -1) {
                     const el = document.getElementById(`s-${idx}`);
-                    if(el) { el.classList.add('active'); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); text = this.subs[idx].text; }
+                    if(el) { el.classList.add('active'); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); text = subs[idx].text; }
                 }
                 this.elFocusText.textContent = text;
             }
@@ -1613,8 +1650,14 @@
         currentChapIdx: -1,
         syncChapterActive() {
             const chaps = this.meta.chapters || []; if(chaps.length === 0) return;
-            const t = this.audio.currentTime; let idx = -1;
-            for(let i=0; i<chaps.length; i++) if(t >= this.getChapTime(chaps[i])) idx = i; else break;
+            const t = this.audio.currentTime;
+            // Binary search: find the last chapter whose start <= t
+            let lo = 0, hi = chaps.length - 1, idx = -1;
+            while (lo <= hi) {
+                const mid = (lo + hi) >> 1;
+                if (this.getChapTime(chaps[mid]) <= t) { idx = mid; lo = mid + 1; }
+                else hi = mid - 1;
+            }
             if(idx !== this.currentChapIdx) {
                 document.getElementById(`chap-${this.currentChapIdx}`)?.classList.remove('active-chap');
                 this.currentChapIdx = idx;
