@@ -1,35 +1,51 @@
-# kikiyomi audio book player
+# kikiyomi (Fork)
 ![player_screenshot](https://github.com/user-attachments/assets/6cd3ef88-8f87-4b43-a946-38864b3d436f)
 
-**kikiyomi** is a simple, single-file audiobook player designed for japanese language learners. it runs entirely in your browser and works offline once loaded.
+**kikiyomi** is a powerful, single-file audiobook player designed specifically for Japanese language immersion. This fork adds deep integration for Anki, Yomitan, and live translation to the original experience.
 
-## features
+## 🚀 Added Features (v1.3.2)
 
-- **immersive focus mode:** oled-black background with large text for vr and mobile.
-- **history:** remembers your progress across multiple books.
-- **subtitle support:** drag and drop .srt files alongside your audio.
-- **gap filling:** automatically displays the previous line during silence.
-- **gamepad support:** control playback with a game controller.
+- **Anki Integration:** Attach high-quality audio snippets and book cover art directly to your most recent Anki card with a single tap.
+- **Word Navigation Mode:** Move word-by-word through subtitles to trigger **Yomitan** lookups without using a mouse. Perfect for couch immersion.
+- **Live Translation:** Instant translation of subtitle lines via Google Translate. Free, fast, and cached for offline reading.
+- **Improved UI:** Refined layouts, inline controls (Anki, Star, Translate, Copy), and dynamic library cards.
+- **Full Gamepad Support:** Fully playable via PS4, Xbox, or standard HID controllers.
 
-![home_screenshot](https://github.com/user-attachments/assets/0e5780e1-e62a-42c2-93c2-9cacb789c081)
+## 🛠️ Features
 
-## how to use
+- **Immersive Focus Mode:** OLED-black background with large, customizable text for deep focus.
+- **Smart History:** Persistently remembers your progress and statistics for every book in your library.
+- **Gap Filling:** Automatically keeps the previous line visible during silences for better context.
+- **Audiobook Metadata:** Extracts chapters and cover art from `.m4b` and `.mp3` files.
 
-1. open the [live player](https://rtr46.github.io/kikiyomi).
-2. drag and drop your `.m4b` or `.mp3` file (and optional `.srt` file) onto the drop zone.
-3. click "focus" to enter immersive mode.
+## 🎮 Controls
 
-## controls
-
-| action | keyboard | gamepad |
+### Normal Mode
+| Action | Keyboard | Gamepad |
 | :--- | :--- | :--- |
-| play / pause | space / w | button a |
-| replay line | s / down | d-pad down |
-| previous line | a / left | d-pad left |
-| next line | d / right | d-pad right |
-| toggle focus | f | button y |
-| exit focus | esc / hold click | - |
+| Play / Pause | Space / W | Button A (0) |
+| Next / Prev Line | D / A | D-pad R / L |
+| Replay Line | S | D-pad Down |
+| Next / Prev Chapter| E / Q | R1 / L1 |
+| **Anki Integration** | **C** | **Options / Start (9)** |
+| **Translate Line** | **T** | **Button X (2)** |
+| Toggle Focus Mode | F | Button Y (3) |
+| **Enter Word Nav** | **N** | **L2 (6)** |
 
-## license
+### Word Navigation Mode
+| Action | Keyboard | Gamepad |
+| :--- | :--- | :--- |
+| Move Word L / R | B / M | D-pad L / R |
+| **Trigger Yomitan** | **Enter / Space**| **Button A (0)** |
+| **Anki Integration** | **C** | **Options / Start (9)** |
+| **Translate Line** | **T** | **Button X (2)** |
+| Exit Word Nav | N | L2 (6) |
 
-gpl-3.0
+## 🚀 Getting Started
+
+1.  Open the [live player](https://rtr46.github.io/kikiyomi).
+2.  Drag and drop your `.m4b` or `.mp3` file (and optional `.srt`) onto the drop zone.
+3.  Configure your Anki fields in **Settings** if using the additional features.
+
+## 📄 License
+GPL-3.0

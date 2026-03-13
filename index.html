@@ -167,7 +167,7 @@
         #sub-list li { 
             position: relative;
             display: grid; 
-            grid-template-columns: 40px 40px 1fr 60px; 
+            grid-template-columns: 40px 40px 40px 1fr 60px; 
             align-items: center;
             min-height: 1.5em;
             padding: 15px 0;
@@ -212,6 +212,14 @@
             font-weight: var(--active-weight); 
             transform: scale(var(--active-scale)); 
             text-shadow: 0 0 20px rgba(0,0,0,0.5); 
+        }
+
+        .sub-text-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
         }
         
         /* Word Segmentation for Yomitan */
@@ -275,6 +283,22 @@
             color: var(--text);
             border-color: var(--text-muted);
         }
+
+        /* Translation Rendering */
+        .sub-translation {
+            grid-column: 4;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-style: italic;
+            margin-top: 5px;
+            line-height: 1.3;
+            text-align: center;
+            opacity: 0.8;
+        }
+        .trans-btn { font-size: 1.2rem; filter: grayscale(1); opacity: 0.5; transition: all 0.2s; cursor: pointer; display: flex; align-items: center; justify-content: center; user-select: none; }
+        #sub-list li:hover .trans-btn { opacity: 1; }
+        .trans-btn:hover { filter: grayscale(0); transform: scale(1.1); opacity: 1 !important; }
+        .trans-btn.active { filter: grayscale(0); opacity: 1 !important; color: var(--warn); }
         
         /* Empty State SRT Upload */
         .srt-empty-container { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; width: 100%; padding: 40px; box-sizing: border-box; }
@@ -480,6 +504,22 @@
             </div>
 
             <div class="setting-section">
+                <div class="setting-section-title">Translation</div>
+                <div class="setting-row"><label>Target Language</label><select id="opt-lang" onchange="App.applySettings()">
+                    <option value="en">English</option>
+                    <option value="es">Spanish</option>
+                    <option value="fr">French</option>
+                    <option value="de">German</option>
+                    <option value="it">Italian</option>
+                    <option value="pt">Portuguese</option>
+                    <option value="ru">Russian</option>
+                    <option value="ko">Korean</option>
+                    <option value="zh-CN">Chinese (Simplified)</option>
+                    <option value="ja">Japanese</option>
+                </select></div>
+            </div>
+
+            <div class="setting-section">
                 <div class="setting-section-title">Playback & Debug</div>
                 <div class="setting-row"><label>Fill Silence (Gaps)</label><input type="checkbox" id="opt-fill" checked onchange="App.applySettings()" style="width:20px; height:20px; accent-color: var(--primary);"></div>
                 <div class="setting-row"><label>Show Input Debug Overlay</label><input type="checkbox" id="opt-debug" onchange="App.applySettings()" style="width:20px; height:20px; accent-color: var(--primary);"></div>
@@ -558,6 +598,7 @@
                 <tr><td>Prev / Next Chapter</td><td>Q / E &nbsp;·&nbsp; GP: L1 / R1</td></tr>
                 <tr><td>Toggle Focus Mode</td><td>F &nbsp;·&nbsp; GP: Y (△)</td></tr>
                 <tr><td>Anki Enhancement</td><td>C &nbsp;·&nbsp; GP: Options/Start</td></tr>
+                <tr><td>Translate Line</td><td>T &nbsp;·&nbsp; GP: X (□)</td></tr>
                 <tr><td>Enter Word Nav Mode</td><td>N &nbsp;·&nbsp; GP: L2</td></tr>
             </table>
 
@@ -566,6 +607,7 @@
                 <tr><td>Move Word Left / Right</td><td>B / M &nbsp;·&nbsp; GP: D-pad ←/→</td></tr>
                 <tr><td>Open Yomitan on Word</td><td>Enter / Space &nbsp;·&nbsp; GP: A</td></tr>
                 <tr><td>Anki Enhancement</td><td>C &nbsp;·&nbsp; GP: Options/Start</td></tr>
+                <tr><td>Translate Line</td><td>T &nbsp;·&nbsp; GP: X (□)</td></tr>
             </table>
 
             <div class="setting-section-title" style="margin-top:16px; margin-bottom:8px;">Focus Mode</div>
@@ -597,7 +639,7 @@
         
         <div style="width:100%; border-bottom:1px solid #333; margin-bottom: 15px; padding-bottom:5px; color:#aaa; font-size:0.9rem; font-weight:bold;">Library Details</div>
         <div id="library-list"></div>
-        <div class="version-footer">v1.2.0 - Local Storage Only</div>
+        <div class="version-footer">v1.3.2 - Local Storage Only</div>
     </div>
     
     <!-- PLAYER -->
@@ -1081,7 +1123,7 @@
         words: [], activeWordIndex: 0, navigationActive: false,
         activeCoverFilename: null, // Cached Anki media filename for the current book's cover
         sessionStartTime: null, // To track time spent in current session
-        settings: { font: '', size: 36, fillGap: true, bold: false, focusWidth: 90, activeScale: 1.05, ankiField: 'Sentence Audio', ankiPictureField: 'Picture', ankiAddCover: true, showSubProgress: true, showDebug: false },
+        settings: { font: '', size: 36, fillGap: true, bold: false, focusWidth: 90, activeScale: 1.05, ankiField: 'Sentence Audio', ankiPictureField: 'Picture', ankiAddCover: true, showSubProgress: true, showDebug: false, targetLang: 'en' },
         showToast(message, type = 'success', duration = 3000) {
             const toast = document.getElementById('toast');
             toast.textContent = message;
@@ -1276,6 +1318,53 @@
                 App.showToast('Subtitle not visible — scroll to it first', 'error');
             }
         },
+        async translateSub(index, btnEl) {
+            const s = Player.subs[index];
+            if (!s) return;
+            
+            const transEl = document.getElementById(`trans-${index}`);
+            if (!transEl) return;
+
+            // Toggle if already translated
+            if (s.translation && !transEl.classList.contains('hidden')) {
+                transEl.classList.add('hidden');
+                btnEl.classList.remove('active');
+                return;
+            }
+            
+            if (s.translation) {
+                transEl.textContent = s.translation;
+                transEl.classList.remove('hidden');
+                btnEl.classList.add('active');
+                return;
+            }
+
+            // Fetch translation
+            try {
+                btnEl.classList.add('loading');
+                btnEl.style.animation = 'ky-spin 1s linear infinite';
+                
+                const lang = this.settings.targetLang || 'en';
+                const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${lang}&dt=t&q=${encodeURIComponent(s.text)}`;
+                
+                const res = await fetch(url);
+                const data = await res.json();
+                
+                if (data && data[0] && data[0][0]) {
+                    const translation = data[0].map(x => x[0]).join("");
+                    s.translation = translation;
+                    transEl.textContent = translation;
+                    transEl.classList.remove('hidden');
+                    btnEl.classList.add('active');
+                }
+            } catch (e) {
+                console.error("Translation failed:", e);
+                this.showToast("Translation failed", "error");
+            } finally {
+                btnEl.classList.remove('loading');
+                btnEl.style.animation = '';
+            }
+        },
         loadSettings() {
             this.settings.theme = localStorage.getItem('ky_theme') || "kiku-dark";
             this.settings.font = localStorage.getItem('ky_font') || "system-ui, -apple-system, sans-serif";
@@ -1289,6 +1378,7 @@
             this.settings.ankiAddCover = localStorage.getItem('ky_anki_add_cover') !== "false";
             this.settings.showSubProgress = localStorage.getItem('ky_sub_progress') !== "false";
             this.settings.showDebug = localStorage.getItem('ky_debug') === "true";
+            this.settings.targetLang = localStorage.getItem('ky_lang') || "en";
     
             document.getElementById('opt-theme').value = this.settings.theme;
             document.getElementById('opt-font').value = this.settings.font;
@@ -1302,6 +1392,7 @@
             document.getElementById('opt-anki-add-cover').checked = this.settings.ankiAddCover;
             document.getElementById('opt-sub-progress').checked = this.settings.showSubProgress;
             document.getElementById('opt-debug').checked = this.settings.showDebug;
+            document.getElementById('opt-lang').value = this.settings.targetLang;
             this.applySettings(true);
         },
         applySettings(isLoad=false) {
@@ -1318,6 +1409,8 @@
                 this.settings.ankiAddCover = document.getElementById('opt-anki-add-cover').checked;
                 this.settings.showSubProgress = document.getElementById('opt-sub-progress').checked;
                 this.settings.showDebug = document.getElementById('opt-debug').checked;
+                const langChanged = this.settings.targetLang !== document.getElementById('opt-lang').value;
+                this.settings.targetLang = document.getElementById('opt-lang').value;
         
                 localStorage.setItem('ky_theme', this.settings.theme);
                 localStorage.setItem('ky_font', this.settings.font);
@@ -1331,6 +1424,20 @@
                 localStorage.setItem('ky_anki_add_cover', this.settings.ankiAddCover);
                 localStorage.setItem('ky_sub_progress', this.settings.showSubProgress);
                 localStorage.setItem('ky_debug', this.settings.showDebug);
+                localStorage.setItem('ky_lang', this.settings.targetLang);
+
+                if (langChanged && Player.subs) {
+                    Player.subs.forEach((s, idx) => {
+                        delete s.translation;
+                        const el = document.getElementById(`trans-${idx}`);
+                        if (el) {
+                            el.classList.add('hidden');
+                            el.textContent = '';
+                        }
+                    });
+                    document.querySelectorAll('.trans-btn').forEach(b => b.classList.remove('active'));
+                    this.showToast("Translation language updated", "success");
+                }
             }
     
             document.documentElement.setAttribute('data-theme', this.settings.theme);
@@ -1876,9 +1983,27 @@
                 starCol.appendChild(star);
                 li.appendChild(starCol);
 
+                // --- Translate Column ---
+                const transCol = document.createElement('div');
+                transCol.className = 'star-col';
+                const transBtn = document.createElement('div');
+                transBtn.className = 'trans-btn';
+                transBtn.textContent = '文';
+                transBtn.title = "Translate line";
+                transBtn.onclick = (e) => { e.stopPropagation(); App.translateSub(i, transBtn); };
+                transCol.appendChild(transBtn);
+                li.appendChild(transCol);
+
                 // --- Text Column (Segmented) ---
                 const txtCol = document.createElement('div');
                 txtCol.className = 'text-container';
+                
+                const subTextWrapper = document.createElement('div');
+                subTextWrapper.className = 'sub-text-wrapper';
+                
+                const translationDiv = document.createElement('div');
+                translationDiv.id = `trans-${i}`;
+                translationDiv.className = 'sub-translation hidden';
                 
                 if (segmenter) {
                     const segments = segmenter.segment(s.text);
@@ -1906,10 +2031,11 @@
                 } else {
                     // Fallback if Segmenter is not supported
                     txtCol.textContent = s.text;
-                    li.onclick = () => { this.audio.currentTime = s.start + 0.001; };
                 }
 
-                li.appendChild(txtCol);
+                subTextWrapper.appendChild(txtCol);
+                subTextWrapper.appendChild(translationDiv);
+                li.appendChild(subTextWrapper);
 
                 // --- Copy Column ---
                 const copyCol = document.createElement('div');
@@ -1931,9 +2057,7 @@
                 li.appendChild(progress);
                 
                 // Click Behavior: Just Seek (if clicking empty space in li)
-                if (segmenter) {
-                     li.onclick = () => { this.audio.currentTime = s.start + 0.001; };
-                }
+                li.onclick = () => { this.audio.currentTime = s.start + 0.001; };
                 frag.appendChild(li);
             });
             this.elSubList.appendChild(frag);
@@ -2201,6 +2325,12 @@
                 else if(key === 'e') Player.nextChap();
                 else if(key === 'f') App.toggleFocusMode();
                 else if(k==='KeyC' || key==='c') App.enhanceAnkiCard();
+                else if(k==='KeyT' || key==='t') {
+                    if (Player.activeIndex !== -1) {
+                        const btn = document.querySelector(`#s-${Player.activeIndex} .trans-btn`);
+                        App.translateSub(Player.activeIndex, btn);
+                    }
+                }
             });
             window.addEventListener("gamepadconnected", () => {
                 if(!this.polling) { this.polling = true; requestAnimationFrame(this.poll.bind(this)); }
@@ -2240,9 +2370,16 @@
                     this.checkBtn(gp, 14, () => App.moveWordLeft()); // D-Pad Left
                     this.checkBtn(gp, 15, () => App.moveWordRight()); // D-Pad Right
                     this.checkBtn(gp, 0, () => App.triggerYomitan()); // A Button
+                    this.checkBtn(gp, 2, () => {
+                        const idx = App.words[App.activeWordIndex || 0]?.subIndex ?? Player.activeIndex;
+                        if (idx !== -1) App.translateSub(idx, document.querySelector(`#s-${idx} .trans-btn`));
+                    }); // X Button
                     this.checkBtn(gp, 9, () => App.enhanceAnkiCard()); // Options/Start
                 } else {
                     this.checkBtn(gp, 0, () => Player.togglePlay()); 
+                    this.checkBtn(gp, 2, () => {
+                        if (Player.activeIndex !== -1) App.translateSub(Player.activeIndex, document.querySelector(`#s-${Player.activeIndex} .trans-btn`));
+                    }); // X Button
                     this.checkBtn(gp, 3, () => App.toggleFocusMode());
                     this.checkBtn(gp, 9, () => App.enhanceAnkiCard()); // Options/Start
                     this.checkBtn(gp, 14, () => Player.prevSub()); 
