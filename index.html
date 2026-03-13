@@ -134,14 +134,14 @@
         
         #library-list { width: 100%; display: flex; flex-direction: column; gap: 10px; }
 
-        .lib-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--border); cursor: pointer; transition: transform 0.1s, background 0.2s; height: 80px; overflow: hidden; }
+        .lib-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--border); cursor: pointer; transition: transform 0.1s, background 0.2s; min-height: 80px; height: auto; overflow: hidden; }
         .lib-item:hover { background: var(--surface-hover); }
         .lib-item:active { transform: scale(0.99); }
         .lib-item.active-book { border: 2px solid var(--primary); background: var(--surface-active); }
         .lib-cover { width: 60px; height: 60px; background: var(--bg); border-radius: 4px; object-fit: cover; margin-right: 15px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: var(--text-muted); border: 1px solid var(--border); }
         .lib-info { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
         .lib-title { font-weight: bold; font-size: 1rem; margin-bottom: 5px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .lib-meta { color:var(--text-muted); font-size:0.75rem; display: flex; align-items: center; gap: 6px; }
+        .lib-meta { color:var(--text-muted); font-size:0.75rem; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
         .progress-bar-mini { height: 4px; background: var(--bg); width: 100%; margin-top: 8px; border-radius: 2px; }
         .progress-fill-mini { height: 100%; background: var(--sec); width: 0%; border-radius: 2px; }
         .badge { background: var(--bg); color: var(--text-muted); padding: 2px 5px; border-radius: 3px; font-size: 0.65rem; border: 1px solid var(--border); text-transform: uppercase; letter-spacing: 0.5px; }
@@ -167,7 +167,7 @@
         #sub-list li { 
             position: relative;
             display: grid; 
-            grid-template-columns: 50px 50px 1fr; 
+            grid-template-columns: 40px 40px 1fr 60px; 
             align-items: center;
             min-height: 1.5em;
             padding: 15px 0;
@@ -226,7 +226,6 @@
         .word.highlighted { 
             background-color: var(--primary); 
             color: #000; 
-            font-weight: bold; 
         }
         
         /* Bookmark Star */
@@ -251,6 +250,31 @@
         #sub-list li:hover .star-btn { color: var(--text); opacity: 1; }
         .star-btn:hover { color: var(--warn) !important; opacity: 1 !important; transform: scale(1.1); }
         .star-btn.filled { opacity: 1; color: var(--warn); }
+        
+        /* Copy Button */
+        .sub-copy-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            font-size: 0.7rem;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            visibility: hidden;
+            opacity: 0;
+        }
+        #sub-list li:hover .sub-copy-btn {
+            visibility: visible;
+            opacity: 1;
+        }
+        .sub-copy-btn:hover {
+            background: var(--surface-hover);
+            color: var(--text);
+            border-color: var(--text-muted);
+        }
         
         /* Empty State SRT Upload */
         .srt-empty-container { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; width: 100%; padding: 40px; box-sizing: border-box; }
@@ -385,10 +409,28 @@
         .focus-btn:hover { background: rgba(45, 45, 45, 0.8); border-color: var(--primary); color: var(--text-active); transform: scale(1.1); opacity: 1; }
         .focus-btn.star { font-size: 1.6rem; }
         .focus-btn.loading { opacity: 1; color: var(--warn); }
+        
+        /* Diagnostic Overlay */
+        #input-debug {
+            position: fixed;
+            top: 70px;
+            left: 10px;
+            background: rgba(0,0,0,0.8);
+            color: #0f0;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 0.7rem;
+            border-radius: 4px;
+            z-index: 1000;
+            pointer-events: none;
+            border: 1px solid #040;
+            display: none;
+        }
     </style>
     </head>
-    <body>
+    <body onload="console.log('Kikiyomi: Body Onload')">
     
+    <div id="input-debug">LOGS: ...</div>
     <div id="toast"></div>
     
     <input type="file" id="srt-upload" hidden accept=".srt">
@@ -438,8 +480,9 @@
             </div>
 
             <div class="setting-section">
-                <div class="setting-section-title">Playback</div>
+                <div class="setting-section-title">Playback & Debug</div>
                 <div class="setting-row"><label>Fill Silence (Gaps)</label><input type="checkbox" id="opt-fill" checked onchange="App.applySettings()" style="width:20px; height:20px; accent-color: var(--primary);"></div>
+                <div class="setting-row"><label>Show Input Debug Overlay</label><input type="checkbox" id="opt-debug" onchange="App.applySettings()" style="width:20px; height:20px; accent-color: var(--primary);"></div>
             </div>
 
             <div style="text-align: right; margin-top:30px;"><button class="btn btn-primary" onclick="App.toggleModal('modal-settings')">Done</button></div>
@@ -504,19 +547,34 @@
 
     <!-- HELP -->
     <div id="modal-help" class="modal-overlay hidden" onclick="if(event.target===this) App.toggleModal('modal-help')">
-        <div class="modal">
+        <div class="modal" style="max-height:85vh; overflow-y:auto;">
             <h2 style="margin-top:0; color: var(--primary);">Controls</h2>
+
+            <div class="setting-section-title" style="margin-bottom:8px;">Normal Mode</div>
             <table class="key-table">
-                <tr><td>Play / Pause</td><td>Space / W / (GP: A)</td></tr>
-                <tr><td>Prev / Next Line</td><td>A / D / (GP: Left/Right)</td></tr>
-                <tr><td>Replay Line</td><td>S / Down / (GP: Down)</td></tr>
-                <tr><td>Prev / Next Chap</td><td>Q / E / (GP: L1/R1)</td></tr>
-                <tr><td>Toggle Focus</td><td>F / (GP: Y)</td></tr>
-                <tr><td>Word Nav Mode</td><td>N / (GP: L2)</td></tr>
-                <tr><td>Word Nav (When Active)</td><td>B/M / (GP: Left/Right)</td></tr>
-                <tr><td>Yomitan (When Active)</td><td>Enter/Space / (GP: A)</td></tr>
-                <tr><td>Exit Focus</td><td>Esc / Hold Click</td></tr>
+                <tr><td>Play / Pause</td><td>Space / W &nbsp;·&nbsp; GP: A</td></tr>
+                <tr><td>Prev / Next Line</td><td>A / D &nbsp;·&nbsp; GP: D-pad ←/→</td></tr>
+                <tr><td>Replay Line</td><td>S / ↓ &nbsp;·&nbsp; GP: D-pad ↓</td></tr>
+                <tr><td>Prev / Next Chapter</td><td>Q / E &nbsp;·&nbsp; GP: L1 / R1</td></tr>
+                <tr><td>Toggle Focus Mode</td><td>F &nbsp;·&nbsp; GP: Y (△)</td></tr>
+                <tr><td>Anki Enhancement</td><td>C &nbsp;·&nbsp; GP: Options/Start</td></tr>
+                <tr><td>Enter Word Nav Mode</td><td>N &nbsp;·&nbsp; GP: L2</td></tr>
             </table>
+
+            <div class="setting-section-title" style="margin-top:16px; margin-bottom:8px;">Word Navigation Mode <span style="font-weight:normal; font-size:0.8rem; color:var(--text-muted);">(toggle with N / L2)</span></div>
+            <table class="key-table">
+                <tr><td>Move Word Left / Right</td><td>B / M &nbsp;·&nbsp; GP: D-pad ←/→</td></tr>
+                <tr><td>Open Yomitan on Word</td><td>Enter / Space &nbsp;·&nbsp; GP: A</td></tr>
+                <tr><td>Anki Enhancement</td><td>C &nbsp;·&nbsp; GP: Options/Start</td></tr>
+            </table>
+
+            <div class="setting-section-title" style="margin-top:16px; margin-bottom:8px;">Focus Mode</div>
+            <table class="key-table">
+                <tr><td>Exit Focus Mode</td><td>Esc &nbsp;·&nbsp; Long-press screen</td></tr>
+                <tr><td>Tap Left / Right</td><td>Prev / Next Line</td></tr>
+                <tr><td>Tap Centre</td><td>Play / Pause</td></tr>
+            </table>
+
             <div style="text-align: right; margin-top:20px;"><button class="btn btn-primary" onclick="App.toggleModal('modal-help')">Got it</button></div>
         </div>
     </div>
@@ -539,7 +597,7 @@
         
         <div style="width:100%; border-bottom:1px solid #333; margin-bottom: 15px; padding-bottom:5px; color:#aaa; font-size:0.9rem; font-weight:bold;">Library Details</div>
         <div id="library-list"></div>
-        <div class="version-footer">v1.1.2 - Local Storage Only</div>
+        <div class="version-footer">v1.2.0 - Local Storage Only</div>
     </div>
     
     <!-- PLAYER -->
@@ -1023,7 +1081,7 @@
         words: [], activeWordIndex: 0, navigationActive: false,
         activeCoverFilename: null, // Cached Anki media filename for the current book's cover
         sessionStartTime: null, // To track time spent in current session
-        settings: { font: '', size: 36, fillGap: true, bold: false, focusWidth: 90, activeScale: 1.05, ankiField: 'Sentence Audio', ankiPictureField: 'Picture', ankiAddCover: true, showSubProgress: true },
+        settings: { font: '', size: 36, fillGap: true, bold: false, focusWidth: 90, activeScale: 1.05, ankiField: 'Sentence Audio', ankiPictureField: 'Picture', ankiAddCover: true, showSubProgress: true, showDebug: false },
         showToast(message, type = 'success', duration = 3000) {
             const toast = document.getElementById('toast');
             toast.textContent = message;
@@ -1195,21 +1253,28 @@
                 setTimeout(() => btnElement.style.color = originalColor, 2000);
             });
         },
-        triggerAnkiCard() {
-            if (this.words.length === 0 || this.activeWordIndex < 0 || this.activeWordIndex >= this.words.length) return;
-            // Yomitan default shortcut to add an Anki card is Alt + E
-            document.dispatchEvent(new KeyboardEvent('keydown', {
-                key: 'e', code: 'KeyE', keyCode: 69, altKey: true, bubbles: true, cancelable: true
-            }));
+        enhanceAnkiCard() {
+            let targetSubIndex = Player.activeIndex;
             
-            const targetElement = this.words[this.activeWordIndex].element;
-            const originalBg = targetElement.style.backgroundColor;
-            targetElement.style.backgroundColor = '#4CAF50';
-            targetElement.style.color = '#fff';
-            setTimeout(() => {
-                targetElement.style.backgroundColor = originalBg;
-                targetElement.style.color = '';
-            }, 200);
+            // If word navigation is active, prioritize the subtitle the selected word belongs to
+            if (this.navigationActive && this.activeWordIndex >= 0 && this.words?.[this.activeWordIndex]) {
+                targetSubIndex = this.words[this.activeWordIndex].subIndex;
+            }
+            
+            if (targetSubIndex < 0 || !Player.subs || !Player.subs[targetSubIndex]) {
+                App.showToast('No active subtitle line', 'error');
+                console.warn("Kikiyomi: No active subtitle to attach audio from.");
+                return;
+            }
+
+            // Find the real Anki (◆) button for this subtitle line so the animation plays
+            const ankiBtn = document.querySelector(`[data-anki-sub="${targetSubIndex}"]`);
+            if (ankiBtn) {
+                App.attachAudioFromSub(targetSubIndex, ankiBtn);
+            } else {
+                console.warn("Kikiyomi: Anki button not in DOM, sub", targetSubIndex);
+                App.showToast('Subtitle not visible — scroll to it first', 'error');
+            }
         },
         loadSettings() {
             this.settings.theme = localStorage.getItem('ky_theme') || "kiku-dark";
@@ -1223,6 +1288,7 @@
             this.settings.ankiPictureField = localStorage.getItem('ky_anki_pic_field') || "Picture";
             this.settings.ankiAddCover = localStorage.getItem('ky_anki_add_cover') !== "false";
             this.settings.showSubProgress = localStorage.getItem('ky_sub_progress') !== "false";
+            this.settings.showDebug = localStorage.getItem('ky_debug') === "true";
     
             document.getElementById('opt-theme').value = this.settings.theme;
             document.getElementById('opt-font').value = this.settings.font;
@@ -1235,6 +1301,7 @@
             document.getElementById('opt-anki-pic-field').value = this.settings.ankiPictureField;
             document.getElementById('opt-anki-add-cover').checked = this.settings.ankiAddCover;
             document.getElementById('opt-sub-progress').checked = this.settings.showSubProgress;
+            document.getElementById('opt-debug').checked = this.settings.showDebug;
             this.applySettings(true);
         },
         applySettings(isLoad=false) {
@@ -1250,6 +1317,7 @@
                 this.settings.ankiPictureField = document.getElementById('opt-anki-pic-field').value.trim();
                 this.settings.ankiAddCover = document.getElementById('opt-anki-add-cover').checked;
                 this.settings.showSubProgress = document.getElementById('opt-sub-progress').checked;
+                this.settings.showDebug = document.getElementById('opt-debug').checked;
         
                 localStorage.setItem('ky_theme', this.settings.theme);
                 localStorage.setItem('ky_font', this.settings.font);
@@ -1262,6 +1330,7 @@
                 localStorage.setItem('ky_anki_pic_field', this.settings.ankiPictureField);
                 localStorage.setItem('ky_anki_add_cover', this.settings.ankiAddCover);
                 localStorage.setItem('ky_sub_progress', this.settings.showSubProgress);
+                localStorage.setItem('ky_debug', this.settings.showDebug);
             }
     
             document.documentElement.setAttribute('data-theme', this.settings.theme);
@@ -1270,6 +1339,9 @@
             document.documentElement.style.setProperty('--active-weight', this.settings.bold ? 'bold' : 'normal');
             document.documentElement.style.setProperty('--focus-width', this.settings.focusWidth + '%');
             document.documentElement.style.setProperty('--active-scale', this.settings.activeScale);
+            
+            const debugEl = document.getElementById('input-debug');
+            if (debugEl) debugEl.style.display = this.settings.showDebug ? 'block' : 'none';
             
             if (Player.meta) Player.syncSub(); 
         },
@@ -1655,9 +1727,17 @@
         },
         async parseSrt(file) {
             const text = await file.text();
-            const pattern = /(\d+)\n(\d{2}:\d{2}:\d{2},\d{3}) --> (\d{2}:\d{2}:\d{2},\d{3})\n((?:(?!\d+\n).)*)/gs;
-            const matches = [...text.replace(/\r\n/g, '\n').matchAll(pattern)];
-            return matches.map(m => ({ start: this.timeToSec(m[2]), end: this.timeToSec(m[3]), text: m[4].trim() }));
+            // Using character codes for newline to avoid literal issues in some environments
+            const lineBreak = String.fromCharCode(10);
+            const patternString = "(\\d+)" + lineBreak + "(\\d{2}:\\d{2}:\\d{2},\\d{3}) --> (\\d{2}:\\d{2}:\\d{2},\\d{3})" + lineBreak + "((?:(?!\\d+" + lineBreak + ").)*)";
+            const pattern = new RegExp(patternString, "gs");
+            const normalizedText = text.replace(/\r\n/g, lineBreak);
+            const matches = [...normalizedText.matchAll(pattern)];
+            return matches.map(m => ({
+                start: this.timeToSec(m[2]),
+                end: this.timeToSec(m[3]),
+                text: m[4].trim()
+            }));
         },
         async parseJsonChapters(file) { try { return JSON.parse(await file.text()); } catch(e) { return []; } },
         timeToSec(tStr) {
@@ -1780,6 +1860,7 @@
                 ankiBtn.className = 'star-btn';
                 ankiBtn.textContent = '◆';
                 ankiBtn.title = "Enhance recent Anki card";
+                ankiBtn.dataset.ankiSub = i;
                 ankiBtn.onclick = (e) => { e.stopPropagation(); App.attachAudioFromSub(i, ankiBtn); };
                 ankiCol.appendChild(ankiBtn);
                 li.appendChild(ankiCol);
@@ -2075,12 +2156,21 @@
     const Input = {
         btns: {}, 
         init() {
+            const debugEl = document.getElementById('input-debug');
             document.addEventListener('keydown', e => {
-                if (document.getElementById('view-player').classList.contains('hidden')) return;
                 const k = e.code;
+                const key = e.key.toLowerCase();
+                const isPlayerHidden = document.getElementById('view-player').classList.contains('hidden');
+                
+                if (App.settings.showDebug && debugEl) {
+                    const logMsg = `KEY: ${k} (${key}) - PlayerHidden: ${isPlayerHidden}`;
+                    debugEl.textContent = logMsg;
+                }
+                
+                if (isPlayerHidden) return;
                 
                 // Toggle Navigation Mode
-                if (k === 'KeyN') {
+                if (k === 'KeyN' || key === 'n') {
                     App.navigationActive = !App.navigationActive;
                     if (App.navigationActive) {
                         Player.pause();
@@ -2096,26 +2186,39 @@
                 }
 
                 if (App.navigationActive) {
-                    if (k === 'ArrowLeft' || k === 'KeyB') { e.preventDefault(); App.moveWordLeft(); }
-                    else if (k === 'ArrowRight' || k === 'KeyM') { e.preventDefault(); App.moveWordRight(); }
-                    else if (k === 'Enter' || k === 'Space') { e.preventDefault(); App.triggerYomitan(); }
-                    else if (k === 'KeyC') { e.preventDefault(); App.triggerAnkiCard(); }
+                    if (k === 'ArrowLeft' || key === 'arrowleft' || key === 'b') { e.preventDefault(); App.moveWordLeft(); }
+                    else if (k === 'ArrowRight' || key === 'arrowright' || key === 'm') { e.preventDefault(); App.moveWordRight(); }
+                    else if (k === 'Enter' || key === 'enter' || key === ' ') { e.preventDefault(); App.triggerYomitan(); }
+                    else if (k === 'KeyC' || key === 'c') { e.preventDefault(); App.triggerAnkiCard(); }
                     return; // Interdict normal playback controls
                 }
 
-                if(k==='Space' || k==='KeyW') { e.preventDefault(); Player.togglePlay(); }
-                else if(k==='KeyA' || k==='ArrowLeft') Player.prevSub();
-                else if(k==='KeyD' || k==='ArrowRight') Player.nextSub();
-                else if(k==='KeyS' || k==='ArrowDown') { e.preventDefault(); Player.replaySub(); }
-                else if(k==='KeyQ' || k==='PageUp') Player.prevChap();
-                else if(k==='KeyE' || k==='PageDown') Player.nextChap();
-                else if(k==='KeyF') App.toggleFocusMode();
-                else if(k==='Escape' && !document.getElementById('view-focus').classList.contains('hidden')) { App.toggleFocusMode(); }
+                if(key === ' ' || key === 'w') { e.preventDefault(); Player.togglePlay(); }
+                else if(k==='KeyA' || key==='arrowleft') Player.prevSub();
+                else if(k==='KeyD' || key==='arrowright') Player.nextSub();
+                else if(k==='KeyS' || key==='arrowdown') { e.preventDefault(); Player.replaySub(); }
+                else if(key === 'q') Player.prevChap();
+                else if(key === 'e') Player.nextChap();
+                else if(key === 'f') App.toggleFocusMode();
+                else if(k==='KeyC' || key==='c') App.enhanceAnkiCard();
             });
-            window.addEventListener("gamepadconnected", () => requestAnimationFrame(this.poll.bind(this)));
+            window.addEventListener("gamepadconnected", () => {
+                if(!this.polling) { this.polling = true; requestAnimationFrame(this.poll.bind(this)); }
+            });
+            // Also start polling if gamepad already present
+            setTimeout(() => {
+                if (!this.polling && navigator.getGamepads().some(g => g !== null)) {
+                    this.polling = true;
+                    requestAnimationFrame(this.poll.bind(this));
+                }
+            }, 1000);
         },
         poll() {
-            const gp = navigator.getGamepads()[0];
+            const gamepads = navigator.getGamepads();
+            let gp = null;
+            for (let i = 0; i < gamepads.length; i++) {
+                if (gamepads[i]) { gp = gamepads[i]; break; }
+            }
             if (gp) {
                 // Toggle Navigation Mode (L2 Trigger / Button 6)
                 this.checkBtn(gp, 6, () => {
@@ -2137,20 +2240,39 @@
                     this.checkBtn(gp, 14, () => App.moveWordLeft()); // D-Pad Left
                     this.checkBtn(gp, 15, () => App.moveWordRight()); // D-Pad Right
                     this.checkBtn(gp, 0, () => App.triggerYomitan()); // A Button
-                    this.checkBtn(gp, 2, () => App.triggerAnkiCard()); // X Button
+                    this.checkBtn(gp, 9, () => App.enhanceAnkiCard()); // Options/Start
                 } else {
-                    this.checkBtn(gp, 0, () => Player.togglePlay()); this.checkBtn(gp, 3, () => App.toggleFocusMode());
-                    this.checkBtn(gp, 14, () => Player.prevSub()); this.checkBtn(gp, 15, () => Player.nextSub());
-                    this.checkBtn(gp, 13, () => Player.replaySub()); this.checkBtn(gp, 4, () => Player.prevChap());
-                    this.checkBtn(gp, 5, () => Player.nextChap()); this.checkBtn(gp, 7, () => Player.nextChap());
+                    this.checkBtn(gp, 0, () => Player.togglePlay()); 
+                    this.checkBtn(gp, 3, () => App.toggleFocusMode());
+                    this.checkBtn(gp, 9, () => App.enhanceAnkiCard()); // Options/Start
+                    this.checkBtn(gp, 14, () => Player.prevSub()); 
+                    this.checkBtn(gp, 15, () => Player.nextSub());
+                    this.checkBtn(gp, 13, () => Player.replaySub()); 
+                    this.checkBtn(gp, 4, () => Player.prevChap());
+                    this.checkBtn(gp, 5, () => Player.nextChap()); 
+                    this.checkBtn(gp, 7, () => Player.nextChap());
                     const axisX = gp.axes[0], axisY = gp.axes[1];
-                    if (axisX < -0.5) this.triggerAxis('axLeft', () => Player.prevSub()); else if (axisX > 0.5) this.triggerAxis('axRight', () => Player.nextSub()); else { this.btns['axLeft'] = false; this.btns['axRight'] = false; }
-                    if (axisY > 0.5) this.triggerAxis('axDown', () => Player.replaySub()); else this.btns['axDown'] = false;
+                    if (axisX < -0.5) this.triggerAxis('axLeft', () => Player.prevSub()); 
+                    else if (axisX > 0.5) this.triggerAxis('axRight', () => Player.nextSub()); 
+                    else { this.btns['axLeft'] = false; this.btns['axRight'] = false; }
+                    if (axisY > 0.5) this.triggerAxis('axDown', () => Player.replaySub()); 
+                    else this.btns['axDown'] = false;
                 }
             }
             requestAnimationFrame(this.poll.bind(this));
         },
-        checkBtn(gp, idx, cb) { if (gp.buttons[idx] && gp.buttons[idx].pressed) { if (!this.btns[idx]) { this.btns[idx] = true; cb(); } } else { this.btns[idx] = false; } },
+        checkBtn(gp, idx, cb) { 
+            if (gp.buttons[idx] && gp.buttons[idx].pressed) { 
+                if (!this.btns[idx]) { 
+                    this.btns[idx] = true; 
+                    if (App.settings.showDebug) {
+                        const debugEl = document.getElementById('input-debug');
+                        if (debugEl) debugEl.textContent = "GP BTN: " + idx;
+                    }
+                    cb(); 
+                } 
+            } else { this.btns[idx] = false; } 
+        },
         triggerAxis(key, cb) { if (!this.btns[key]) { this.btns[key] = true; cb(); } }
     };
     App.init();
