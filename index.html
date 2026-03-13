@@ -86,6 +86,7 @@
         .modal { background: var(--surface); padding: 25px; border-radius: var(--radius); width: 90%; max-width: 500px; border: 1px solid var(--border); box-shadow: 0 10px 25px rgba(0,0,0,0.2); max-height: 85vh; display: flex; flex-direction: column; }
         .setting-row { margin-bottom: 20px; display:flex; justify-content: space-between; align-items: center; }
         .setting-row label { color: var(--text); font-size: 0.9rem; flex: 1; }
+        .setting-hint { font-size: 0.7rem; color: var(--text-muted); margin-top: -15px; margin-bottom: 15px; line-height: 1.3; font-style: italic; }
         .setting-input-group { flex: 1; display:flex; justify-content: flex-end; align-items: center; gap: 10px; }
         select, input[type=number] { padding: 8px; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 4px; max-width: 100%; }
         
@@ -169,7 +170,6 @@
         #sub-list li .text-container {
             text-align: center;
             text-wrap: balance;
-            transition: color 0.1s, transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1); 
             transform-origin: center center;
         }
 
@@ -211,9 +211,12 @@
             cursor: pointer; 
             padding: 5px; 
             opacity: 0.5;
-            transition: color 0.2s, opacity 0.2s;
             user-select: none;
+            display: inline-block;
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
+        @keyframes ky-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .star-btn.loading { animation: ky-spin 1.5s linear infinite; opacity: 1; color: var(--warn); pointer-events: none; }
         #sub-list li:hover .star-btn { color: var(--text); opacity: 1; }
         .star-btn:hover { color: var(--warn) !important; opacity: 1 !important; transform: scale(1.1); }
         .star-btn.filled { opacity: 1; color: var(--warn); }
@@ -267,6 +270,34 @@
         }
         #focus-hint { position: absolute; bottom: 20px; color: #333; font-size: 0.8rem; font-family: sans-serif; opacity: 0; transition: opacity 0.5s; user-select: none; }
         #view-focus:hover #focus-hint { opacity: 1; }
+        #focus-anki-btn {
+            position: fixed;
+            bottom: 40px;
+            right: 40px;
+            background: rgba(45, 45, 45, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-muted);
+            width: 54px;
+            height: 54px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1.6rem;
+            backdrop-filter: blur(8px);
+            transition: all 0.2s;
+            z-index: 110;
+            opacity: 0.5;
+        }
+        #focus-anki-btn:hover {
+            background: rgba(45, 45, 45, 0.8);
+            color: var(--text-active);
+            transform: scale(1.1);
+            border-color: var(--primary);
+            opacity: 1;
+        }
+        #focus-anki-btn.loading { opacity: 1; color: var(--warn); }
     
         @media (max-width: 600px) {
             #chapter-list { width: 85%; }
@@ -339,6 +370,8 @@
             <div class="setting-row"><label>Bold Active Line</label><input type="checkbox" id="opt-bold" onchange="App.applySettings()" style="width:20px; height:20px; accent-color: var(--primary);"></div>
             <div class="setting-row"><label>Anki Audio Field</label><div class="setting-input-group"><input type="text" id="opt-anki-field" value="Sentence Audio" onchange="App.applySettings()" style="width:160px"></div></div>
             <div class="setting-row"><label>Anki Picture Field</label><div class="setting-input-group"><input type="text" id="opt-anki-pic-field" value="Picture" onchange="App.applySettings()" style="width:160px"></div></div>
+            <div class="setting-hint">Note: AnkiConnect will <b>append</b> to these fields, not overwrite them.</div>
+            <div class="setting-row"><label>Add Cover Art to Card</label><input type="checkbox" id="opt-anki-add-cover" checked onchange="App.applySettings()" style="width:20px; height:20px; accent-color: var(--primary);"></div>
             <div class="setting-row"><label>Fill Silence (Gaps)</label><input type="checkbox" id="opt-fill" checked onchange="App.applySettings()" style="width:20px; height:20px; accent-color: var(--primary);"></div>
             <div style="text-align: right; margin-top:20px;"><button class="btn btn-primary" onclick="App.toggleModal('modal-settings')">Done</button></div>
         </div>
@@ -451,6 +484,7 @@
     <div id="view-focus" class="hidden">
         <div id="focus-text">...</div>
         <div id="focus-hint">Tap Center: Play • Tap Sides: Seek • Hold/Esc: Exit</div>
+        <div id="focus-anki-btn" class="star-btn" title="Enhance recent Anki card" onclick="event.stopPropagation(); App.attachAudioFromSub(Player.activeIndex, this)">🔊</div>
     </div>
     
     <audio id="audio-el" hidden></audio>
@@ -878,7 +912,7 @@
         currentBook: null, activeAudioBlob: null,
         words: [], activeWordIndex: 0, navigationActive: false,
         activeCoverFilename: null, // Cached Anki media filename for the current book's cover
-        settings: { font: '', size: 36, fillGap: true, bold: false, focusWidth: 90, activeScale: 1.05, ankiField: 'Sentence Audio', ankiPictureField: 'Picture' },
+        settings: { font: '', size: 36, fillGap: true, bold: false, focusWidth: 90, activeScale: 1.05, ankiField: 'Sentence Audio', ankiPictureField: 'Picture', ankiAddCover: true },
         showToast(message, type = 'success', duration = 3000) {
             const toast = document.getElementById('toast');
             toast.textContent = message;
@@ -992,6 +1026,7 @@
             
             const originalColor = btnElement.style.color;
             btnElement.style.color = 'var(--warn)';
+            btnElement.classList.add('loading');
             const endTime = sub.end || (sub.start + 5.0);
             
             AudioUtils.getAudioSnippetBase64(App.activeAudioBlob, sub.start, endTime).then(async (audioData) => {
@@ -999,37 +1034,45 @@
                 if (cardId) {
                     const filename = `kikiyomi_audio_${Date.now()}.${audioData.ext}`;
                     const fieldUsed = await AnkiConnect.addAudioToCard(cardId, audioData.base64, filename, App.settings.ankiField);
-                    if(fieldUsed) {
-                        btnElement.style.color = 'var(--sec)';
-                        setTimeout(() => btnElement.style.color = originalColor, 2000);
-                        App.showToast(`✅ Audio added to "${fieldUsed}"`, 'success');
-
-                        // Also attach cover art if available
+                    
+                    if (fieldUsed) {
+                        let msg = "✅ Audio added";
+                        
+                        // Also attach cover art if enabled and available
                         const cover = App.currentBook?.cover;
-                        if (cover?.blob) {
-                            AnkiConnect.addCoverToCard(
-                                cardId, cover.blob,
-                                App.activeCoverFilename, // null on first call, cached filename afterwards
-                                App.settings.ankiPictureField
-                            ).then(storedName => {
-                                if (storedName) App.activeCoverFilename = storedName;
-                            });
+                        if (App.settings.ankiAddCover && cover?.blob) {
+                            try {
+                                const storedName = await AnkiConnect.addCoverToCard(
+                                    cardId, cover.blob,
+                                    App.activeCoverFilename,
+                                    App.settings.ankiPictureField
+                                );
+                                if (storedName) {
+                                    App.activeCoverFilename = storedName;
+                                    msg = "✅ Audio & Cover added";
+                                }
+                            } catch (e) {
+                                console.warn("Cover attachment failed:", e);
+                            }
                         }
+
+                        btnElement.style.color = 'var(--sec)';
+                        App.showToast(msg, 'success');
                     } else {
                         btnElement.style.color = 'red';
-                        setTimeout(() => btnElement.style.color = originalColor, 2000);
                         App.showToast('❌ Failed to update card fields', 'error');
                     }
                 } else {
                     btnElement.style.color = 'orange';
-                    setTimeout(() => btnElement.style.color = originalColor, 2000);
                     App.showToast('⚠️ No recent Anki card found', 'error');
                 }
             }).catch(e => {
                 console.error("Audio extraction failed:", e);
                 btnElement.style.color = 'red';
-                setTimeout(() => btnElement.style.color = originalColor, 2000);
                 App.showToast('❌ Audio extraction error', 'error');
+            }).finally(() => {
+                btnElement.classList.remove('loading');
+                setTimeout(() => btnElement.style.color = originalColor, 2000);
             });
         },
         triggerAnkiCard() {
@@ -1058,6 +1101,7 @@
             this.settings.activeScale = parseFloat(localStorage.getItem('ky_active_scale') || "1.05");
             this.settings.ankiField = localStorage.getItem('ky_anki_field') || "Sentence Audio";
             this.settings.ankiPictureField = localStorage.getItem('ky_anki_pic_field') || "Picture";
+            this.settings.ankiAddCover = localStorage.getItem('ky_anki_add_cover') !== "false";
     
             document.getElementById('opt-theme').value = this.settings.theme;
             document.getElementById('opt-font').value = this.settings.font;
@@ -1068,6 +1112,7 @@
             document.getElementById('opt-active-scale').value = this.settings.activeScale;
             document.getElementById('opt-anki-field').value = this.settings.ankiField;
             document.getElementById('opt-anki-pic-field').value = this.settings.ankiPictureField;
+            document.getElementById('opt-anki-add-cover').checked = this.settings.ankiAddCover;
             this.applySettings(true);
         },
         applySettings(isLoad=false) {
@@ -1081,6 +1126,7 @@
                 this.settings.activeScale = parseFloat(document.getElementById('opt-active-scale').value);
                 this.settings.ankiField = document.getElementById('opt-anki-field').value.trim();
                 this.settings.ankiPictureField = document.getElementById('opt-anki-pic-field').value.trim();
+                this.settings.ankiAddCover = document.getElementById('opt-anki-add-cover').checked;
         
                 localStorage.setItem('ky_theme', this.settings.theme);
                 localStorage.setItem('ky_font', this.settings.font);
@@ -1091,6 +1137,7 @@
                 localStorage.setItem('ky_active_scale', this.settings.activeScale);
                 localStorage.setItem('ky_anki_field', this.settings.ankiField);
                 localStorage.setItem('ky_anki_pic_field', this.settings.ankiPictureField);
+                localStorage.setItem('ky_anki_add_cover', this.settings.ankiAddCover);
             }
     
             document.documentElement.setAttribute('data-theme', this.settings.theme);
@@ -1432,6 +1479,7 @@
         elSeek: document.getElementById('seek-bar'), elFill: document.getElementById('seek-fill'), elMarkers: document.getElementById('seek-markers'),
         elTCurr: document.getElementById('t-curr'), elTTotal: document.getElementById('t-total'),
         elBtnPlay: document.getElementById('btn-play'), elFocusText: document.getElementById('focus-text'),
+        elFocusAnkiBtn: document.getElementById('focus-anki-btn'),
         elChapList: document.getElementById('chapter-list'),
     
         load(meta, blob, seekTo = null) {
@@ -1497,7 +1545,7 @@
                 const ankiBtn = document.createElement('span');
                 ankiBtn.className = 'star-btn';
                 ankiBtn.textContent = '🔊';
-                ankiBtn.title = "Send audio to newest Anki card";
+                ankiBtn.title = "Enhance recent Anki card";
                 ankiBtn.onclick = (e) => { e.stopPropagation(); App.attachAudioFromSub(i, ankiBtn); };
                 ankiCol.appendChild(ankiBtn);
                 li.appendChild(ankiCol);
@@ -1643,6 +1691,9 @@
                 if (idx !== -1) {
                     const el = document.getElementById(`s-${idx}`);
                     if(el) { el.classList.add('active'); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); text = subs[idx].text; }
+                    this.elFocusAnkiBtn?.classList.remove('hidden');
+                } else {
+                    this.elFocusAnkiBtn?.classList.add('hidden');
                 }
                 this.elFocusText.textContent = text;
             }
