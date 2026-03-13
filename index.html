@@ -377,7 +377,14 @@
             transform: translateX(-50%) translateY(0);
         }
         #toast.success { border-color: var(--sec); color: var(--sec); }
-        #toast.error { border-color: #e57373; color: #e57373; }
+        .sub-copy-btn { margin-left:10px; opacity:0; cursor:pointer; font-size:0.75rem; padding:2px 8px; border:1px solid var(--border); border-radius:4px; font-weight:bold; height:fit-content; background: var(--bg); color: var(--text-muted); transition: opacity 0.2s, border-color 0.2s; }
+        li:hover .sub-copy-btn { opacity:0.5; }
+        .sub-copy-btn:hover { opacity:1 !important; border-color: var(--primary); color: var(--primary); }
+        .focus-controls { position: absolute; bottom: 30px; right: 30px; display: flex; flex-direction: column; gap: 15px; }
+        .focus-btn { width: 54px; height: 54px; background: rgba(45, 45, 45, 0.4); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text-muted); cursor: pointer; backdrop-filter: blur(8px); transition: all 0.2s; font-size: 0.8rem; font-weight: bold; opacity: 0.5; z-index: 110; }
+        .focus-btn:hover { background: rgba(45, 45, 45, 0.8); border-color: var(--primary); color: var(--text-active); transform: scale(1.1); opacity: 1; }
+        .focus-btn.star { font-size: 1.6rem; }
+        .focus-btn.loading { opacity: 1; color: var(--warn); }
     </style>
     </head>
     <body>
@@ -583,7 +590,10 @@
     <div id="view-focus" class="hidden">
         <div id="focus-text">...</div>
         <div id="focus-hint">Tap Center: Play • Tap Sides: Seek • Hold/Esc: Exit</div>
-        <div id="focus-anki-btn" class="star-btn" title="Enhance recent Anki card" onclick="event.stopPropagation(); App.attachAudioFromSub(Player.activeIndex, this)">◆</div>
+        <div class="focus-controls">
+            <button id="focus-copy-btn" class="focus-btn" title="Copy sentence" onclick="event.stopPropagation(); App.copyText(document.getElementById('focus-text').innerText)">Copy</button>
+            <button id="focus-anki-btn" class="focus-btn star" title="Enhance recent Anki card" onclick="event.stopPropagation(); App.attachAudioFromSub(Player.activeIndex, this)">◆</button>
+        </div>
         <div id="focus-progress"><div id="focus-progress-fill"></div></div>
     </div>
     
@@ -1020,6 +1030,15 @@
             toast.className = `show ${type}`;
             clearTimeout(this._toastTimer);
             this._toastTimer = setTimeout(() => toast.className = '', duration);
+        },
+        copyText(text) {
+            if (!text) return;
+            navigator.clipboard.writeText(text).then(() => {
+                this.showToast('Copied to clipboard', 'success', 1500);
+            }).catch(err => {
+                console.error('Copy failed:', err);
+                this.showToast('Copy failed', 'error');
+            });
         },
         async init() {
             await DB.init();
@@ -1810,6 +1829,16 @@
                 }
 
                 li.appendChild(txtCol);
+
+                // --- Copy Column ---
+                const copyCol = document.createElement('div');
+                copyCol.className = 'star-col'; // Professional spacing
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'sub-copy-btn';
+                copyBtn.textContent = 'Copy';
+                copyBtn.onclick = (e) => { e.stopPropagation(); App.copyText(s.text); };
+                copyCol.appendChild(copyBtn);
+                li.appendChild(copyCol);
                 
                 // --- Progress Bar ---
                 const progress = document.createElement('div');
