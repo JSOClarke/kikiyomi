@@ -1,9 +1,8 @@
 # kikiyomi (Fork)
-![kikiyomi preview](capture.png)
 
 **kikiyomi** is a powerful, single-file audiobook player designed specifically for Japanese language immersion. This fork adds deep integration for Anki, Yomitan, and live translation to the original experience.
 
-### [📺 Video Demo (Anki Integration & Word Nav)](demo.webm)
+<video src="demo.webm" controls width="100%"></video>
 
 ## 🚀 Added Features (v1.3.2)
 
