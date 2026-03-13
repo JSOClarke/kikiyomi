@@ -484,7 +484,7 @@
     <div id="view-focus" class="hidden">
         <div id="focus-text">...</div>
         <div id="focus-hint">Tap Center: Play • Tap Sides: Seek • Hold/Esc: Exit</div>
-        <div id="focus-anki-btn" class="star-btn" title="Enhance recent Anki card" onclick="event.stopPropagation(); App.attachAudioFromSub(Player.activeIndex, this)">🔊</div>
+        <div id="focus-anki-btn" class="star-btn" title="Enhance recent Anki card" onclick="event.stopPropagation(); App.attachAudioFromSub(Player.activeIndex, this)">◆</div>
     </div>
     
     <audio id="audio-el" hidden></audio>
@@ -1544,7 +1544,7 @@
                 ankiCol.className = 'star-col';
                 const ankiBtn = document.createElement('span');
                 ankiBtn.className = 'star-btn';
-                ankiBtn.textContent = '🔊';
+                ankiBtn.textContent = '◆';
                 ankiBtn.title = "Enhance recent Anki card";
                 ankiBtn.onclick = (e) => { e.stopPropagation(); App.attachAudioFromSub(i, ankiBtn); };
                 ankiCol.appendChild(ankiBtn);
