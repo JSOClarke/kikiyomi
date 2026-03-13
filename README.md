@@ -6,7 +6,7 @@
 
 ## 🚀 Added Features (v1.3.2)
 
-- **Anki Integration:** Attach high-quality audio snippets and book cover art directly to your most recent Anki card with a single tap.
+- **Anki Integration:** Attach the audiobooks audio snippet and book cover art directly to your most recent Anki card with a single tap.
   ![Anki Card Example](anki_preview.png)
 - **Word Navigation Mode:** Move word-by-word through subtitles to trigger **Yomitan** lookups without using a mouse. Perfect for couch immersion.
   ![Word Nav Example](word_nav_preview.png)
