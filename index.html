@@ -135,6 +135,12 @@
         /* --- VIEW: LIBRARY --- */
         #view-library { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; align-items: center; max-width: 800px; margin: 0 auto; width: 100%; }
         
+        .dash-container { width: 100%; display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 25px; }
+        .dash-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 15px; text-align: center; display: flex; flex-direction: column; justify-content: center; }
+        .dash-card-val { font-size: 1.5rem; font-weight: bold; color: var(--primary); font-family: monospace; line-height: 1; }
+        .dash-card-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 8px; }
+        @media (max-width: 600px) { .dash-container { grid-template-columns: repeat(2, 1fr); gap: 10px; } }
+
         .drop-zone { width: 100%; min-height: 120px; border: 2px dashed var(--border); border-radius: var(--radius); display: flex; flex-direction: column; justify-content: center; align-items: center; background: var(--surface); margin-bottom: 20px; transition: all 0.2s; cursor: pointer; flex-shrink: 0; padding: 15px; }
         .drop-zone:hover { border-color: var(--primary); background: var(--surface-hover); }
         .drop-zone.dragover { border-color: var(--primary); background: var(--surface-active); transform: scale(1.01); }
@@ -554,7 +560,7 @@
 
             <div class="setting-section">
                 <div class="setting-section-title">Anki Enhancements</div>
-                <div class="setting-row"><label>Anki Audio Field</label><div class="setting-input-group"><input type="text" id="opt-anki-field" value="Sentence Audio" onchange="App.applySettings()" style="width:160px"></div></div>
+                <div class="setting-row"><label>Anki Audio Field</label><div class="setting-input-group"><input type="text" id="opt-anki-field" value="SentenceAudio" onchange="App.applySettings()" style="width:160px"></div></div>
                 <div class="setting-row"><label>Anki Picture Field</label><div class="setting-input-group"><input type="text" id="opt-anki-pic-field" value="Picture" onchange="App.applySettings()" style="width:160px"></div></div>
                 <div class="setting-hint">Note: AnkiConnect will <b>append</b> to these fields, not overwrite them.</div>
                 <div class="setting-row"><label>Add Cover Art to Card</label><input type="checkbox" id="opt-anki-add-cover" checked onchange="App.applySettings()" style="width:20px; height:20px; accent-color: var(--primary);"></div>
@@ -722,6 +728,25 @@
             <div style="color:#666; font-size:0.9rem; margin-top:5px;">Immersive Audiobook & Reader Player</div>
         </div>
         
+        <div class="dash-container" id="dash-container">
+            <div class="dash-card">
+                <div class="dash-card-val" id="dash-words">0</div>
+                <div class="dash-card-label">Words</div>
+            </div>
+            <div class="dash-card">
+                <div class="dash-card-val" id="dash-chars">0</div>
+                <div class="dash-card-label">Characters</div>
+            </div>
+            <div class="dash-card">
+                <div class="dash-card-val" id="dash-time">0m</div>
+                <div class="dash-card-label">Time</div>
+            </div>
+            <div class="dash-card">
+                <div class="dash-card-val" id="dash-streak">0 🔥</div>
+                <div class="dash-card-label">Streak</div>
+            </div>
+        </div>
+
         <div class="drop-zone" id="drop-zone">
             <div class="drop-zone-content">
                 <div class="mode-card">
@@ -1372,6 +1397,13 @@
         },
         getAudioUrl(text) {
             return `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=ja&client=tw-ob`;
+        },
+        async getAudioDataForAnki(text) {
+            // NOTE: Microsoft Edge TTS via wss://speech.platform.bing.com requires an Origin header 
+            // that cannot be spoofed from a browser environment without a dedicated backend proxy.
+            // As kikiyomi is a purely static local app, we gracefully default to the Google Translate 
+            // TTS endpoint which supports direct HTTP GET requests.
+            return Promise.resolve({ url: this.getAudioUrl(text), ext: 'mp3' });
         }
     };
     
@@ -1568,6 +1600,50 @@
         }
     };
     
+    const Stats = {
+        getDailyStats() { try { return JSON.parse(localStorage.getItem('ky_daily_stats')) || {}; } catch(e) { return {}; } },
+        saveDailyStats(stats) { localStorage.setItem('ky_daily_stats', JSON.stringify(stats)); },
+        getTodayKey() { 
+            const d = new Date(); 
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; 
+        },
+        addProgress(words, chars, msTime) {
+            const today = this.getTodayKey();
+            const stats = this.getDailyStats();
+            if (!stats[today]) stats[today] = { words: 0, chars: 0, time: 0 };
+            if (words > 0) stats[today].words += words;
+            if (chars > 0) stats[today].chars = (stats[today].chars || 0) + chars;
+            if (msTime > 0) stats[today].time += msTime;
+            this.saveDailyStats(stats);
+            if (!document.getElementById('view-library').classList.contains('hidden')) App.updateDashboard();
+        },
+        getStreak() {
+            const stats = this.getDailyStats();
+            let streak = 0;
+            const d = new Date();
+            const formatD = (date) => `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+            
+            let checkStr = formatD(d);
+            
+            if (!stats[checkStr] || ((stats[checkStr].words || 0) === 0 && (stats[checkStr].chars || 0) === 0 && Math.floor(stats[checkStr].time / 60000) === 0)) {
+                d.setDate(d.getDate() - 1);
+                checkStr = formatD(d);
+                if (!stats[checkStr] || ((stats[checkStr].words || 0) === 0 && (stats[checkStr].chars || 0) === 0 && Math.floor(stats[checkStr].time / 60000) === 0)) return 0;
+            }
+            
+            while (true) {
+                if (stats[checkStr] && ((stats[checkStr].words || 0) > 0 || (stats[checkStr].chars || 0) > 0 || Math.floor(stats[checkStr].time / 60000) > 0)) {
+                    streak++;
+                    d.setDate(d.getDate() - 1);
+                    checkStr = formatD(d);
+                } else {
+                    break;
+                }
+            }
+            return streak;
+        }
+    };
+
     const App = {
         currentBook: null, activeAudioBlob: null,
         words: [], activeWordIndex: 0, navigationActive: false,
@@ -1712,15 +1788,16 @@
 
             const isTts = !App.activeAudioBlob;
             const audioPromise = isTts 
-                ? Promise.resolve({ url: TTS.getAudioUrl(sub.text), ext: 'mp3' })
+                ? TTS.getAudioDataForAnki(sub.text)
                 : AudioUtils.getAudioSnippetBase64(App.activeAudioBlob, sub.start, sub.end || (sub.start + 5.0));
             
             audioPromise.then(async (audioData) => {
                 const cardId = await AnkiConnect.getLastCreatedCardId();
                 if (cardId) {
                     const filename = `kikiyomi_audio_${Date.now()}.${audioData.ext}`;
-                    const source = isTts ? audioData.url : audioData.base64;
-                    const fieldUsed = await AnkiConnect.addAudioToCard(cardId, source, filename, App.settings.ankiField, isTts);
+                    const source = audioData.url ? audioData.url : audioData.base64;
+                    const isUrlParam = !!audioData.url;
+                    const fieldUsed = await AnkiConnect.addAudioToCard(cardId, source, filename, App.settings.ankiField, isUrlParam);
                     
                     if (fieldUsed) {
                         let msg = "✅ Audio added";
@@ -1847,6 +1924,12 @@
             }
             return text.trim().split(/\s+/).filter(w => w.length > 0).length;
         },
+        countCharacters(text) {
+            if (!text) return 0;
+            // Remove spaces, punctuation, etc. to get true Japanese character count
+            const cleanText = text.replace(/[\s\u3000、。！？\.\,\;\:\!\?\-\(\)\[\]\{\}\"\'\「\」\『\』]/g, '');
+            return [...cleanText].length; // Supports surrogate pairs safely
+        },
         segmentText(allText) {
             const subs = [];
             const segmenter = new Intl.Segmenter('ja', { granularity: 'sentence' });
@@ -1964,7 +2047,7 @@
             this.settings.bold = localStorage.getItem('ky_bold') === "true"; 
             this.settings.focusWidth = parseInt(localStorage.getItem('ky_focus_width') || "90");
             this.settings.activeScale = parseFloat(localStorage.getItem('ky_active_scale') || "1.05");
-            this.settings.ankiField = localStorage.getItem('ky_anki_field') || "Sentence Audio";
+            this.settings.ankiField = localStorage.getItem('ky_anki_field') || "SentenceAudio";
             this.settings.ankiPictureField = localStorage.getItem('ky_anki_pic_field') || "Picture";
             this.settings.ankiAddCover = localStorage.getItem('ky_anki_add_cover') !== "false";
             this.settings.showSubProgress = localStorage.getItem('ky_sub_progress') !== "false";
@@ -2112,10 +2195,21 @@
             }
         },
         toggleModal(id) { document.getElementById(id).classList.toggle('hidden'); },
+        updateDashboard() {
+            const today = Stats.getTodayKey();
+            const stats = Stats.getDailyStats()[today] || { words: 0, chars: 0, time: 0 };
+            const streak = Stats.getStreak();
+            
+            document.getElementById('dash-words').innerText = Math.floor(stats.words || 0).toLocaleString();
+            document.getElementById('dash-chars').innerText = Math.floor(stats.chars || 0).toLocaleString();
+            document.getElementById('dash-time').innerText = Math.floor(stats.time / 60000) + 'm';
+            document.getElementById('dash-streak').innerText = streak + (streak > 0 ? ' 🔥' : ' 🧊');
+        },
         async renderLibrary() {
             document.getElementById('view-library').classList.remove('hidden');
             document.getElementById('view-player').classList.add('hidden');
             document.getElementById('view-focus').classList.add('hidden');
+            this.updateDashboard();
             
             const allBooks = await DB.getAllMetadata();
             allBooks.sort((a, b) => b.lastPlayed - a.lastPlayed);
@@ -2299,6 +2393,7 @@
         async handleFiles(files) {
             this.setLoading(true, "Loading Book...");
             setTimeout(async () => {
+                let launched = false;
                 try {
                     let audioFile = null, srtFile = null, jsonFile = null, epubFile = null;
                     const getExt = (name) => name.split('.').pop().toLowerCase();
@@ -2351,10 +2446,11 @@
                         localStorage.setItem('activeBookId', id);
                         this.currentBook = meta;
                         this.launchPlayer();
+                        launched = true;
                     } else if (srtFile) { alert("Please drop the audio/epub file too."); }
                     else { alert("Please drop an Audio File or EPUB."); }
                 } catch (e) { console.error(e); alert("Error processing file."); } 
-                finally { this.setLoading(false); }
+                finally { if (!launched) this.setLoading(false); }
             }, 50);
         },
         async handleSrtUpload(file) {
@@ -2404,7 +2500,6 @@
                         this.currentBook = book;
                         this.activeAudioBlob = book.isTextOnly ? null : file;
                         this.launchPlayer(seekTo);
-                        this.setLoading(false);
                         return;
                     }
                 } catch (e) { 
@@ -2443,7 +2538,11 @@
             this.navigationActive = false;
             document.getElementById('nav-indicator').classList.add('hidden');
             
-            Player.load(this.currentBook, this.activeAudioBlob, seekTo);
+            this.setLoading(true, "Preparing Player...");
+            setTimeout(() => {
+                Player.load(this.currentBook, this.activeAudioBlob, seekTo);
+                this.setLoading(false);
+            }, 50);
         },
         showStats() {
             if (!this.currentBook) return alert("Load a book first to see statistics.");
@@ -2807,7 +2906,10 @@
                     progress.appendChild(fill);
                     li.appendChild(progress);
                     
-                    li.onclick = () => { this.audio.currentTime = s.start + 0.001; };
+                    li.onclick = () => { 
+                        this.audio.currentTime = s.start + 0.001; 
+                        if (this.meta.isTextOnly) this.syncSub(); 
+                    };
                     frag.appendChild(li);
                 }
                 
@@ -2822,6 +2924,7 @@
                         span.onclick = (e) => { 
                             if (!App.navigationActive) {
                                 this.audio.currentTime = s.start + 0.001; 
+                                if (this.meta.isTextOnly) this.syncSub();
                             } else {
                                 e.stopPropagation();
                                 App.activeWordIndex = App.words.findIndex(w => w.element === span);
@@ -3026,12 +3129,14 @@
             const currStart = this.getChapTime(chaps[idx]);
             if (t > currStart + 3) this.audio.currentTime = currStart; 
             else { if (idx > 0) this.audio.currentTime = this.getChapTime(chaps[idx-1]); else this.audio.currentTime = 0; }
+            if (this.meta.isTextOnly) { this.syncSub(); this.updateProgressBars(); }
         },
         nextChap() {
             const chaps = this.meta.chapters || []; if(chaps.length === 0) return;
             const t = this.audio.currentTime; let target = -1;
             for(let i=0; i<chaps.length; i++) if(this.getChapTime(chaps[i]) > t) { target = i; break; }
             if (target > -1) this.audio.currentTime = this.getChapTime(chaps[target]);
+            if (this.meta.isTextOnly) { this.syncSub(); this.updateProgressBars(); }
         },
         updateBtn() { 
             const paused = this.meta.isTextOnly ? this.isPaused : this.audio.paused;
@@ -3047,24 +3152,26 @@
             const now = Date.now();
             const sessionSpent = (now - App.sessionStartTime);
             this.meta.timeSpent = (this.meta.timeSpent || 0) + (sessionSpent / 60000);
-            App.sessionStartTime = now; // Reset for next chunk
-            // Update words read
+            
+            // Update words/chars read
+            let currentReadWords = 0;
+            let currentReadChars = 0;
             if (this.subs && this.subs.length > 0 && this.activeIndex !== -1) {
-                if (this.meta.isTextOnly) {
-                    // For EPUBs, we can use the index to estimate or sum up
-                    let readCount = 0;
-                    for (let i = 0; i <= this.activeIndex; i++) {
-                        readCount += App.countWords(this.subs[i].text);
-                    }
-                    this.meta.readWords = readCount;
-                } else {
-                    let readCount = 0;
-                    for (let i = 0; i <= this.activeIndex; i++) {
-                        readCount += App.countWords(this.subs[i].text);
-                    }
-                    this.meta.readWords = readCount;
+                for (let i = 0; i <= this.activeIndex; i++) {
+                    currentReadWords += App.countWords(this.subs[i].text);
+                    currentReadChars += App.countCharacters(this.subs[i].text);
                 }
             }
+            
+            const newlyReadWords = Math.max(0, currentReadWords - (this.meta.readWords || 0));
+            const newlyReadChars = Math.max(0, currentReadChars - (this.meta.readChars || 0));
+            
+            this.meta.readWords = currentReadWords;
+            this.meta.readChars = currentReadChars;
+            
+            Stats.addProgress(newlyReadWords, newlyReadChars, sessionSpent);
+            
+            App.sessionStartTime = now; // Reset for next chunk
         }
         
         DB.saveMetadata(this.meta); 
@@ -3081,11 +3188,13 @@
         Player.isSeeking = false; 
         if(Player.audio.duration) seekFill.style.width = (Player.audio.currentTime / Player.audio.duration * 100) + "%";
         Player.updateProgressBars(); // Immediate update on seek
+        if (Player.meta.isTextOnly) Player.syncSub();
     });
     seekBar.addEventListener('input', (e) => { 
         document.getElementById('t-curr').textContent = Utils.fmtTime(e.target.value); 
         if(Player.audio.duration) seekFill.style.width = (e.target.value / Player.audio.duration * 100) + "%";
         Player.updateProgressBars(); // Immediate update on seek
+        if (Player.meta.isTextOnly) Player.syncSub();
     });
     
     const focusView = document.getElementById('view-focus');
