@@ -6,14 +6,13 @@
 
 ## 🚀 Added Features (v1.3.2)
 
-- **Anki Integration:** Attach the audiobooks audio snippet and book cover art directly to your most recent Anki card with a single tap.
-  ![Anki Card Example](anki_preview.png)
-- **Word Navigation Mode:** Move word-by-word through subtitles to trigger **Yomitan** lookups without using a mouse. Perfect for couch immersion.
-  ![Word Nav Example](word_nav_preview.png)
-- **Live Translation:** Instant translation of subtitle lines via Google Translate. Free, fast, and cached for offline reading.
-  ![Translation Example](translation_preview.png)
-- **Improved UI:** Refined layouts, inline controls (Anki, Star, Translate, Copy), and dynamic library cards.
-- **Full Gamepad Support:** Fully playable via PS4, Xbox, or standard HID controllers.
+- **Reader Mode (EPUB Support):** Drag and drop `.epub` files for a seamless line-by-line reading experience. Includes automatic segmentation for Japanese (split by sentence or comma).
+- **Storyteller Mode (TTS):** Synchronized Japanese text-to-speech. The player auto-advances lines only after the speech finishes, creating a natural audiobook flow for e-books.
+- **Improved Anki Integration:** Attach audiobook snippets or **synthetic TTS audio** (for EPUBs) plus book cover art directly to your most recent Anki card.
+- **Word Navigation Mode:** Move word-by-word through subtitles or book lines to trigger **Yomitan** lookups without using a mouse.
+- **Live Translation:** Instant translation of lines via Google Translate. Free, fast, and cached for offline reading.
+- **Minimalist UI:** Redesigned dual-mode import area and rounded "Kiku" aesthetics.
+- **Full Gamepad Support:** Playable via PS4, Xbox, or standard HID controllers.
 
 ## 🛠️ Features
 
@@ -33,6 +32,7 @@
 | Next / Prev Chapter| E / Q | R1 / L1 (RB / LB) |
 | **Anki Integration** | **C** | **Menu / Options (9)** |
 | **Translate Line** | **T** | **X / Square (2)** |
+| **Read Aloud (TTS)** | **R** | **Select / Share (8)** |
 | Toggle Focus Mode | F | Y / Triangle (3) |
 | **Enter Word Nav** | **N** | **LT / L2 (6)** |
 
@@ -44,6 +44,7 @@
 | **Switch Mode (Word/Char)** | **V** | **RT / R2 (7)** |
 | **Anki Integration** | **C** | **Menu / Options (9)** |
 | **Translate Line** | **T** | **X / Square (2)** |
+| **Read Aloud (TTS)** | **R** | **Select / Share (8)** |
 | Exit Word Nav | N | LT / L2 (6) |
 
 ### External Macros (Recommended for full immersion)
@@ -59,7 +60,7 @@ For actions that require direct interaction with browser extensions (like Yomita
 ## 🚀 Getting Started
 
 1.  Open the [live player](https://rtr46.github.io/kikiyomi).
-2.  Drag and drop your `.m4b` or `.mp3` file (and optional `.srt`) onto the drop zone.
+2.  Drag and drop your **Audiobook** (+ optional `.srt`) or **EPUB** file onto the drop zone.
 3.  Configure your Anki fields in **Settings** if using the additional features.
 
 ## 📄 License

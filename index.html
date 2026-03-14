@@ -10,6 +10,7 @@
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <script src="https://unpkg.com/fflate"></script>
     <style>
         /* DEFAULT THEME (Kiku Dark) */
         :root, [data-theme="kiku-dark"] { 
@@ -128,9 +129,16 @@
         /* --- VIEW: LIBRARY --- */
         #view-library { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; align-items: center; max-width: 800px; margin: 0 auto; width: 100%; }
         
-        .drop-zone { width: 100%; height: 100px; border: 2px dashed var(--border); border-radius: var(--radius); display: flex; flex-direction: row; gap: 15px; justify-content: center; align-items: center; background: var(--surface); margin-bottom: 20px; transition: border-color 0.2s; cursor: pointer; flex-shrink: 0; width: 100%; }
-        .drop-zone:hover { border-color: var(--text-muted); background: var(--surface-hover); }
-        .drop-zone.dragover { border-color: var(--primary); background: var(--surface-active); }
+        .drop-zone { width: 100%; min-height: 120px; border: 2px dashed var(--border); border-radius: var(--radius); display: flex; flex-direction: column; justify-content: center; align-items: center; background: var(--surface); margin-bottom: 20px; transition: all 0.2s; cursor: pointer; flex-shrink: 0; padding: 15px; }
+        .drop-zone:hover { border-color: var(--primary); background: var(--surface-hover); }
+        .drop-zone.dragover { border-color: var(--primary); background: var(--surface-active); transform: scale(1.01); }
+        
+        .drop-zone-content { display: flex; width: 100%; gap: 20px; justify-content: space-around; pointer-events: none; }
+        .mode-card { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; opacity: 0.8; transition: opacity 0.2s; }
+        .drop-zone:hover .mode-card { opacity: 1; }
+        .mode-title { font-weight: bold; color: var(--text); font-size: 0.95rem; }
+        .mode-desc { color: var(--text-muted); font-size: 0.75rem; line-height: 1.2; }
+        .mode-icon { font-size: 1.8rem; margin-bottom: 2px; }
         
         #library-list { width: 100%; display: flex; flex-direction: column; gap: 10px; }
 
@@ -167,7 +175,7 @@
         #sub-list li { 
             position: relative;
             display: grid; 
-            grid-template-columns: 40px 40px 40px 1fr 60px; 
+            grid-template-columns: 40px 40px 40px 40px 1fr 60px; 
             align-items: center;
             min-height: 1.5em;
             padding: 15px 0;
@@ -478,6 +486,13 @@
             color: var(--primary);
             font-style: italic;
         }
+
+        /* Reader Mode UI Toggles */
+        .mode-reader .volume-row,
+        .mode-reader #t-curr,
+        .mode-reader #t-total,
+        .mode-reader .chap-marker { display: none !important; }
+        .mode-reader .timeline-container::after { content: attr(data-segments); color: var(--text-muted); font-family: monospace; font-size: 0.85rem; }
     </style>
     </head>
     <body onload="console.log('Kikiyomi: Body Onload')">
@@ -521,6 +536,10 @@
                 <div class="setting-row"><label>Active Line Scale</label><div class="setting-input-group"><input type="number" id="opt-active-scale" min="1.0" max="2.0" step="0.05" value="1.05" onchange="App.applySettings()" style="width:70px"></div></div>
                 <div class="setting-row"><label>Bold Active Line</label><input type="checkbox" id="opt-bold" onchange="App.applySettings()" style="width:20px; height:20px; accent-color: var(--primary);"></div>
                 <div class="setting-row"><label>Show Subtitle Progress</label><input type="checkbox" id="opt-sub-progress" checked onchange="App.applySettings()" style="width:20px; height:20px; accent-color: var(--primary);"></div>
+                <div class="setting-row"><label>EPUB: Split at Commas</label><input type="checkbox" id="opt-epub-split" onchange="App.applySettings()" style="width:20px; height:20px; accent-color: var(--primary);"></div>
+                <div class="setting-row"><label>TTS: Voice</label><select id="opt-tts-voice" onchange="App.applySettings()"></select></div>
+                <div class="setting-row"><label>TTS: Speed</label><input type="range" id="opt-tts-rate" min="0.5" max="2" step="0.1" value="1.0" onchange="App.applySettings()"></div>
+                <div class="setting-row"><label>TTS: Auto-play line</label><input type="checkbox" id="opt-tts-auto" onchange="App.applySettings()" style="width:20px; height:20px; accent-color: var(--primary);"></div>
             </div>
 
             <div class="setting-section">
@@ -641,6 +660,7 @@
                 <tr><td>Toggle Focus Mode</td><td>F &nbsp;·&nbsp; GP: Y / Triangle</td></tr>
                 <tr><td>Anki Integration</td><td>C &nbsp;·&nbsp; GP: Options / Menu</td></tr>
                 <tr><td>Translate Line</td><td>T &nbsp;·&nbsp; GP: X / Square</td></tr>
+                <tr><td>Read Aloud (TTS)</td><td>R &nbsp;·&nbsp; GP: Select / Share</td></tr>
                 <tr><td>Enter Word Nav Mode</td><td>N &nbsp;·&nbsp; GP: L2 / LT</td></tr>
             </table>
 
@@ -648,16 +668,24 @@
             <table class="key-table">
                 <tr><td>Move Word Left / Right</td><td>B / M &nbsp;·&nbsp; GP: D-pad ←/→</td></tr>
                 <tr><td>Open Yomitan on Word</td><td>Enter / Space &nbsp;·&nbsp; GP: A / Cross</td></tr>
-                <tr><td>Switch Word/Char Mode</td><td>V &nbsp;·&nbsp; GP: R2 / RT</td></tr>
+                <tr><td>Switch Word/Char Mode</td><td>V &nbsp;&nbsp;·&nbsp; GP: R2 / RT</td></tr>
                 <tr><td>Anki Integration</td><td>C &nbsp;·&nbsp; GP: Options / Menu</td></tr>
                 <tr><td>Translate Line</td><td>T &nbsp;·&nbsp; GP: X / Square</td></tr>
+                <tr><td>Read Aloud (TTS)</td><td>R &nbsp;·&nbsp; GP: Select / Share</td></tr>
             </table>
+
+            <div class="setting-section-title" style="margin-top:16px; margin-bottom:8px;">Reader Mode (EPUB)</div>
+            <div style="font-size:0.85rem; color:var(--text-muted); line-height:1.4; margin-bottom:12px;">
+                Drag an <b>.epub</b> file to start. Navigation works exactly like audiobooks.
+                Use <b>Storyteller Mode</b> (Play button) to auto-advance lines synced with <b>Japanese TTS</b>.
+            </div>
 
             <div class="setting-section-title" style="margin-top:16px; margin-bottom:8px;">Focus Mode</div>
             <table class="key-table">
                 <tr><td>Exit Focus Mode</td><td>Esc &nbsp;·&nbsp; Long-press screen</td></tr>
                 <tr><td>Tap Left / Right</td><td>Prev / Next Line</td></tr>
-                <tr><td>Tap Centre</td><td>Play / Pause</td></tr>
+                <tr><td>Tap Centre</td><td>Play / Pause (Syncs with TTS in EPUB)</td></tr>
+                <tr><td>Anki ◆ Button</td><td>Attach line + Synthetic Audio</td></tr>
             </table>
 
             <div style="text-align: right; margin-top:20px;"><button class="btn btn-primary" onclick="App.toggleModal('modal-help')">Got it</button></div>
@@ -669,15 +697,22 @@
         
         <div style="text-align:center; margin-bottom: 30px;">
             <h1 style="color:var(--primary); margin:0; font-style:italic;">kikiyomi</h1>
-            <div style="color:#666; font-size:0.9rem; margin-top:5px;">Audiobook & Subtitle Player</div>
+            <div style="color:#666; font-size:0.9rem; margin-top:5px;">Immersive Audiobook & Reader Player</div>
         </div>
         
         <div class="drop-zone" id="drop-zone">
-            <div style="text-align:left;">
-                <div style="font-weight:bold; color:#e0e0e0;">Drop Audio & Subtitles here</div>
-                <div style="color:#888; font-size:0.85rem; margin-top:3px;">or click to browse files</div>
+            <div class="drop-zone-content">
+                <div class="mode-card">
+                    <div class="mode-title">Audiobook Mode</div>
+                    <div class="mode-desc">Drop Audio & Subtitles<br><small>(mp3, m4b, srt)</small></div>
+                </div>
+                <div style="width:1px; background:var(--border); opacity:0.3; margin: 10px 0;"></div>
+                <div class="mode-card">
+                    <div class="mode-title">Reader Mode</div>
+                    <div class="mode-desc">Drop E-Books<br><small>(epub)</small></div>
+                </div>
             </div>
-            <input type="file" id="file-input" hidden multiple accept=".mp3,.m4b,.aac,.m4a,.srt,.json">
+            <input type="file" id="file-input" hidden multiple accept=".mp3,.m4b,.aac,.m4a,.srt,.json,.epub">
         </div>
         
         <div style="width:100%; border-bottom:1px solid #333; margin-bottom: 15px; padding-bottom:5px; color:#aaa; font-size:0.9rem; font-weight:bold;">Library Details</div>
@@ -744,7 +779,7 @@
         <div id="focus-hint">Tap Center: Play • Tap Sides: Seek • Hold/Esc: Exit</div>
         <div class="focus-controls">
             <button id="focus-copy-btn" class="focus-btn" title="Copy sentence" onclick="event.stopPropagation(); App.copyText(document.getElementById('focus-text').innerText)">Copy</button>
-            <button id="focus-anki-btn" class="focus-btn star" title="Enhance recent Anki card" onclick="event.stopPropagation(); App.attachAudioFromSub(Player.activeIndex, this)">◆</button>
+            <button id="focus-anki-btn" class="focus-btn star anki-audio-btn" title="Enhance recent Anki card" onclick="event.stopPropagation(); App.attachAudioFromSub(Player.activeIndex, this)">◆</button>
         </div>
         <div id="focus-progress"><div id="focus-progress-fill"></div></div>
     </div>
@@ -974,6 +1009,201 @@
             return meta;
         }
     };
+
+    const EPUBParser = {
+        resolve(base, path) {
+            if (!path) return "";
+            if (path.indexOf("://") > -1) return path;
+            const full = (base + "/" + path).replace(/\/+/g, "/").replace(/^\//, "");
+            const parts = full.split("/");
+            const stack = [];
+            for (const p of parts) {
+                if (p === "..") stack.pop();
+                else if (p !== ".") stack.push(p);
+            }
+            return stack.join("/");
+        },
+        async parse(file) {
+            App.setLoading(true, "Parsing EPUB...");
+            console.log("EPUBParser: Starting parse for", file.name);
+            const meta = { id: "e_" + Math.abs(App.hashCode(file.name)), title: file.name.replace(/\.epub$/i, ''), subs: [], chapters: [], cover: null, isTextOnly: true };
+            try {
+                const buffer = await file.arrayBuffer();
+                const zip = fflate.unzipSync(new Uint8Array(buffer));
+                const parser = new DOMParser();
+                
+                // 1. Find rootfile (OPF)
+                const containerKey = Object.keys(zip).find(k => k.toLowerCase() === 'meta-inf/container.xml');
+                if (!containerKey) throw new Error("META-INF/container.xml not found");
+                
+                const containerDoc = parser.parseFromString(fflate.strFromU8(zip[containerKey]), "text/xml");
+                const rootfile = containerDoc.getElementsByTagName("rootfile")[0];
+                if (!rootfile) throw new Error("Could not find rootfile in container.xml");
+                
+                const opfPath = rootfile.getAttribute("full-path");
+                const opfKey = Object.keys(zip).find(k => k.toLowerCase() === opfPath.toLowerCase());
+                if (!opfKey) throw new Error("OPF file not found: " + opfPath);
+
+                const opfDir = opfPath.includes('/') ? opfPath.substring(0, opfPath.lastIndexOf('/') + 1) : '';
+                const opfDoc = parser.parseFromString(fflate.strFromU8(zip[opfKey]), "text/xml");
+                console.log("EPUBParser: OPF loaded from", opfKey);
+
+                // 2. Parse Metadata
+                const titleNode = opfDoc.getElementsByTagName("dc:title")[0] || opfDoc.getElementsByTagName("title")[0];
+                if (titleNode) meta.title = titleNode.textContent.trim();
+                
+                // 3. Find Cover
+                const coverMeta = opfDoc.querySelector('meta[name="cover"]');
+                if (coverMeta) {
+                    const coverId = coverMeta.getAttribute("content");
+                    const coverItem = opfDoc.getElementById(coverId) || opfDoc.querySelector(`item[id="${coverId}"]`);
+                    if (coverItem) {
+                        const coverPath = this.resolve(opfDir, decodeURIComponent(coverItem.getAttribute("href")));
+                        const zipKey = Object.keys(zip).find(k => k.toLowerCase() === coverPath.toLowerCase());
+                        if (zipKey) {
+                            const ext = coverPath.split('.').pop().toLowerCase();
+                            meta.cover = { blob: new Blob([zip[zipKey]], { type: `image/${ext === 'png' ? 'png' : 'jpeg'}` }) };
+                        }
+                    }
+                }
+
+                // 4. Parse Spine & Manifest
+                const manifest = {};
+                const items = opfDoc.getElementsByTagName("item");
+                for (let i = 0; i < items.length; i++) {
+                    const item = items[i];
+                    manifest[item.getAttribute("id")] = { 
+                        href: decodeURIComponent(item.getAttribute("href")), 
+                        type: item.getAttribute("media-type") 
+                    };
+                }
+
+                const itemrefs = opfDoc.getElementsByTagName("itemref");
+                const spineIds = [];
+                for (let i = 0; i < itemrefs.length; i++) {
+                    spineIds.push(itemrefs[i].getAttribute("idref"));
+                }
+                console.log("EPUBParser: Found", spineIds.length, "spine items");
+
+                // 5. Extract Content
+                let allText = "";
+                for (const idref of spineIds) {
+                    const item = manifest[idref];
+                    if (item) {
+                        const relPath = this.resolve(opfDir, item.href);
+                        const zipKey = Object.keys(zip).find(k => k.toLowerCase() === relPath.toLowerCase());
+                        
+                        if (zipKey) {
+                            const doc = parser.parseFromString(fflate.strFromU8(zip[zipKey]), "text/html");
+                            doc.querySelectorAll("rt, ruby button, script, style").forEach(node => node.remove());
+                            let text = (doc.body ? doc.body.textContent : doc.documentElement.textContent)
+                                .replace(/\s+/g, ' ')
+                                .trim();
+                            if (text) allText += text + " ";
+                        }
+                    }
+                }
+
+                // Fallback: If no text was extracted via spine, try finding any xhtml/html files
+                if (!allText.trim()) {
+                    console.warn("EPUBParser: Spine extraction failed, trying fallback...");
+                    const contentKeys = Object.keys(zip).filter(k => /\.x?html?$/i.test(k)).sort();
+                    for (const key of contentKeys) {
+                        const doc = parser.parseFromString(fflate.strFromU8(zip[key]), "text/html");
+                        doc.querySelectorAll("rt, script, style").forEach(node => node.remove());
+                        const text = (doc.body ? doc.body.textContent : doc.documentElement.textContent).trim();
+                        if (text) allText += text + " ";
+                    }
+                }
+
+                if (!allText.trim()) throw new Error("No text content found in any files inside the EPUB.");
+                console.log("EPUBParser: Extracted text length:", allText.length);
+
+                // 6. Segment into sentences & phrases
+                const { subs, duration } = App.segmentText(allText);
+                meta.subs = subs;
+                meta.duration = duration;
+                
+                // 7. Count Words
+                const wordSegmenter = new Intl.Segmenter('ja', { granularity: 'word' });
+                const wordSegments = wordSegmenter.segment(allText);
+                let wordCount = 0;
+                for (const { isWordLike } of wordSegments) if (isWordLike) wordCount++;
+                meta.totalWords = wordCount;
+                meta.readWords = 0;
+                
+                console.log("EPUBParser: Final segment count:", meta.subs.length, "Word count:", wordCount);
+
+            } catch (e) { 
+                console.error("EPUB Parse Error:", e);
+                alert("Error parsing EPUB: " + e.message); 
+            } finally {
+                App.setLoading(false);
+            }
+            return meta;
+        }
+    };
+
+    const TTS = {
+        enabled: ('speechSynthesis' in window),
+        voices: [],
+        utterance: null,
+        init() {
+            if (!this.enabled) return;
+            window.speechSynthesis.onvoiceschanged = () => {
+                this.voices = window.speechSynthesis.getVoices();
+                this.populateVoiceSelect();
+            };
+            this.voices = window.speechSynthesis.getVoices();
+        },
+        populateVoiceSelect() {
+            const select = document.getElementById('opt-tts-voice');
+            if (!select) return;
+            let currentVoice = App.settings.ttsVoice;
+            select.innerHTML = '<option value="">Default Voice</option>';
+            
+            // Prioritize Japanese and English
+            const sortedVoices = [...this.voices].sort((a, b) => {
+                if (a.lang.startsWith('ja') && !b.lang.startsWith('ja')) return -1;
+                if (!a.lang.startsWith('ja') && b.lang.startsWith('ja')) return 1;
+                return a.name.localeCompare(b.name);
+            });
+
+            // If no voice is saved, auto-select the first Japanese voice
+            if (!currentVoice) {
+                const firstJP = sortedVoices.find(v => v.lang.startsWith('ja'));
+                if (firstJP) {
+                    currentVoice = firstJP.voiceURI;
+                    App.settings.ttsVoice = currentVoice;
+                    localStorage.setItem('ky_tts_voice', currentVoice);
+                }
+            }
+
+            sortedVoices.forEach(v => {
+                const opt = document.createElement('option');
+                opt.value = v.voiceURI;
+                opt.textContent = `${v.name} (${v.lang})`;
+                if (v.voiceURI === currentVoice) opt.selected = true;
+                select.appendChild(opt);
+            });
+        },
+        speak(text, onEnd = null) {
+            if (!this.enabled || !text) return;
+            this.stop();
+            this.utterance = new SpeechSynthesisUtterance(text);
+            const voice = this.voices.find(v => v.voiceURI === App.settings.ttsVoice);
+            if (voice) this.utterance.voice = voice;
+            this.utterance.rate = App.settings.ttsRate || 1.0;
+            if (onEnd) this.utterance.onend = onEnd;
+            window.speechSynthesis.speak(this.utterance);
+        },
+        stop() {
+            if (this.enabled) window.speechSynthesis.cancel();
+        },
+        getAudioUrl(text) {
+            return `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=ja&client=tw-ob`;
+        }
+    };
     
     const AudioUtils = {
         async getAudioSnippetBase64(file, startTime, endTime) {
@@ -1043,7 +1273,7 @@
             if (!cards || cards.length === 0) return null;
             return Math.max(...cards);
         },
-        async addAudioToCard(cardId, audioBase64, filename, targetField) {
+        async addAudioToCard(cardId, audioSource, filename, targetField, isUrl = false) {
             const cardInfo = await this.invoke('cardsInfo', { cards: [cardId] });
             if (!cardInfo || cardInfo.length === 0) return false;
             
@@ -1065,10 +1295,8 @@
             }
             if (!audioField) audioField = Object.keys(fields)[0]; 
             
-            const storedFilename = await this.invoke('storeMediaFile', {
-                filename: filename,
-                data: audioBase64
-            });
+            const mediaParams = isUrl ? { filename, url: audioSource } : { filename, data: audioSource };
+            const storedFilename = await this.invoke('storeMediaFile', mediaParams);
             if (!storedFilename) return false;
             
             const currentContent = fields[audioField].value;
@@ -1175,13 +1403,23 @@
         words: [], activeWordIndex: 0, navigationActive: false,
         activeCoverFilename: null, // Cached Anki media filename for the current book's cover
         sessionStartTime: null, // To track time spent in current session
-        settings: { font: '', size: 36, fillGap: true, bold: false, focusWidth: 90, activeScale: 1.05, ankiField: 'Sentence Audio', ankiPictureField: 'Picture', ankiAddCover: true, showSubProgress: true, showDebug: false, targetLang: 'en', volume: 1.0, segmentationMode: 'word' },
+        settings: { font: '', size: 36, fillGap: true, bold: false, focusWidth: 90, activeScale: 1.05, ankiField: 'Sentence Audio', ankiPictureField: 'Picture', ankiAddCover: true, showSubProgress: true, showDebug: false, targetLang: 'en', volume: 1.0, segmentationMode: 'word', epubSplitAtCommas: false, ttsVoice: '', ttsRate: 1.0, ttsAutoPlay: false },
         showToast(message, type = 'success', duration = 3000) {
             const toast = document.getElementById('toast');
             toast.textContent = message;
             toast.className = `show ${type}`;
             clearTimeout(this._toastTimer);
             this._toastTimer = setTimeout(() => toast.className = '', duration);
+        },
+        setLoading(active, text = "Processing...") {
+            const overlay = document.getElementById('loading-overlay');
+            const txt = document.getElementById('loading-text');
+            if (active) {
+                txt.textContent = text;
+                overlay.classList.remove('hidden');
+            } else {
+                overlay.classList.add('hidden');
+            }
         },
         copyText(text) {
             if (!text) return;
@@ -1194,6 +1432,7 @@
         },
         async init() {
             await DB.init();
+            TTS.init();
             this.loadSettings();
             this.renderLibrary();
             const dz = document.getElementById('drop-zone');
@@ -1293,19 +1532,25 @@
             setTimeout(() => targetElement.style.transform = 'scale(1)', 150);
         },
         attachAudioFromSub(subIndex, btnElement) {
-            if (!App.activeAudioBlob || !Player.subs || !Player.subs[subIndex]) return;
+            if (!Player.subs || !Player.subs[subIndex]) return;
+            App.setLoading(true, "Exporting Audio to Anki...");
             const sub = Player.subs[subIndex];
             
             const originalColor = btnElement.style.color;
             btnElement.style.color = 'var(--warn)';
             btnElement.classList.add('loading');
-            const endTime = sub.end || (sub.start + 5.0);
+
+            const isTts = !App.activeAudioBlob;
+            const audioPromise = isTts 
+                ? Promise.resolve({ url: TTS.getAudioUrl(sub.text), ext: 'mp3' })
+                : AudioUtils.getAudioSnippetBase64(App.activeAudioBlob, sub.start, sub.end || (sub.start + 5.0));
             
-            AudioUtils.getAudioSnippetBase64(App.activeAudioBlob, sub.start, endTime).then(async (audioData) => {
+            audioPromise.then(async (audioData) => {
                 const cardId = await AnkiConnect.getLastCreatedCardId();
                 if (cardId) {
                     const filename = `kikiyomi_audio_${Date.now()}.${audioData.ext}`;
-                    const fieldUsed = await AnkiConnect.addAudioToCard(cardId, audioData.base64, filename, App.settings.ankiField);
+                    const source = isTts ? audioData.url : audioData.base64;
+                    const fieldUsed = await AnkiConnect.addAudioToCard(cardId, source, filename, App.settings.ankiField, isTts);
                     
                     if (fieldUsed) {
                         let msg = "✅ Audio added";
@@ -1346,6 +1591,7 @@
                 btnElement.style.color = 'red';
                 App.showToast('Audio extraction error', 'error');
             }).finally(() => {
+                App.setLoading(false);
                 btnElement.classList.remove('loading');
                 setTimeout(() => btnElement.style.color = originalColor, 2000);
             });
@@ -1422,8 +1668,73 @@
         },
         countWords(text) {
             if (!text) return 0;
-            // Simple word count for stats/history
+            if (window.Intl && Intl.Segmenter) {
+                const segmenter = new Intl.Segmenter('ja', { granularity: 'word' });
+                const segments = segmenter.segment(text);
+                let count = 0;
+                for (const { isWordLike } of segments) if (isWordLike) count++;
+                return count;
+            }
             return text.trim().split(/\s+/).filter(w => w.length > 0).length;
+        },
+        segmentText(allText) {
+            const subs = [];
+            const segmenter = new Intl.Segmenter('ja', { granularity: 'sentence' });
+            const segments = segmenter.segment(allText);
+            let time = 0;
+            for (const { segment } of segments) {
+                const text = segment.trim();
+                if (text.length <= 1) continue;
+
+                let subSegments = [text];
+                if (this.settings.epubSplitAtCommas) {
+                    const delims = /([、，,;；。．.！？!?])/;
+                    const parts = text.split(delims);
+                    subSegments = [];
+                    let current = "";
+                    for (let i = 0; i < parts.length; i++) {
+                        current += parts[i];
+                        if (delims.test(parts[i]) || i === parts.length - 1) {
+                            if (current.trim()) {
+                                subSegments.push(current.trim());
+                                current = "";
+                            }
+                        }
+                    }
+                    if (current.trim()) subSegments.push(current.trim());
+                }
+
+                for (const sub of subSegments) {
+                    subs.push({ start: time, end: time + 1, text: sub });
+                    time += 1;
+                }
+            }
+            return { subs, duration: time };
+        },
+        async reSegmentCurrentBook() {
+            if (!this.currentBook || !this.currentBook.isTextOnly || !Player.subs) return;
+            this.setLoading(true, "Re-segmenting...");
+            
+            await new Promise(r => setTimeout(r, 100)); // Give UI a breather
+
+            const allText = Player.subs.map(s => s.text).join(" ");
+            const { subs, duration } = this.segmentText(allText);
+            
+            this.currentBook.subs = subs;
+            this.currentBook.duration = duration;
+            this.currentBook.progress = Math.min(Player.audio.currentTime, duration);
+            
+            // Re-calculate word counts
+            const wordSegmenter = new Intl.Segmenter('ja', { granularity: 'word' });
+            const wordSegments = wordSegmenter.segment(allText);
+            let wordCount = 0;
+            for (const { isWordLike } of wordSegments) if (isWordLike) wordCount++;
+            this.currentBook.totalWords = wordCount;
+            
+            await DB.saveMetadata(this.currentBook);
+            Player.load(this.currentBook, null, this.currentBook.progress);
+            this.setLoading(false);
+            this.showToast("Done!", "success", 1000);
         },
         recordMining(text) {
             if (!text) return;
@@ -1491,6 +1802,10 @@
             this.settings.targetLang = localStorage.getItem('ky_lang') || "en";
             this.settings.volume = parseFloat(localStorage.getItem('ky_volume') || "1");
             this.settings.segmentationMode = localStorage.getItem('ky_segmentation') || "word";
+            this.settings.epubSplitAtCommas = localStorage.getItem('ky_epub_split') === "true";
+            this.settings.ttsVoice = localStorage.getItem('ky_tts_voice') || '';
+            this.settings.ttsRate = parseFloat(localStorage.getItem('ky_tts_rate') || "1.0");
+            this.settings.ttsAutoPlay = localStorage.getItem('ky_tts_auto') === "true";
     
             document.getElementById('opt-theme').value = this.settings.theme;
             document.getElementById('opt-font').value = this.settings.font;
@@ -1505,6 +1820,10 @@
             document.getElementById('opt-sub-progress').checked = this.settings.showSubProgress;
             document.getElementById('opt-debug').checked = this.settings.showDebug;
             document.getElementById('opt-lang').value = this.settings.targetLang;
+            document.getElementById('opt-epub-split').checked = this.settings.epubSplitAtCommas;
+            document.getElementById('opt-tts-voice').value = this.settings.ttsVoice || '';
+            document.getElementById('opt-tts-rate').value = this.settings.ttsRate || 1.0;
+            document.getElementById('opt-tts-auto').checked = this.settings.ttsAutoPlay;
             const volSlider = document.getElementById('volume-slider');
             if (volSlider) volSlider.value = this.settings.volume;
             
@@ -1512,6 +1831,7 @@
             this.applySettings(true);
         },
         applySettings(isLoad=false) {
+            const oldEpubSplit = this.settings.epubSplitAtCommas;
             if (!isLoad) {
                 this.settings.theme = document.getElementById('opt-theme').value;
                 this.settings.font = document.getElementById('opt-font').value;
@@ -1525,8 +1845,18 @@
                 this.settings.ankiAddCover = document.getElementById('opt-anki-add-cover').checked;
                 this.settings.showSubProgress = document.getElementById('opt-sub-progress').checked;
                 this.settings.showDebug = document.getElementById('opt-debug').checked;
+                this.settings.epubSplitAtCommas = document.getElementById('opt-epub-split').checked;
+                this.settings.ttsVoice = document.getElementById('opt-tts-voice').value;
+                this.settings.ttsRate = parseFloat(document.getElementById('opt-tts-rate').value);
+                this.settings.ttsAutoPlay = document.getElementById('opt-tts-auto').checked;
+                
+                const epubSplitChanged = oldEpubSplit !== this.settings.epubSplitAtCommas;
                 const langChanged = this.settings.targetLang !== document.getElementById('opt-lang').value;
                 this.settings.targetLang = document.getElementById('opt-lang').value;
+        
+                if (epubSplitChanged && this.currentBook && this.currentBook.isTextOnly) {
+                    this.reSegmentCurrentBook();
+                }
         
                 localStorage.setItem('ky_theme', this.settings.theme);
                 localStorage.setItem('ky_font', this.settings.font);
@@ -1543,6 +1873,10 @@
                 localStorage.setItem('ky_lang', this.settings.targetLang);
                 localStorage.setItem('ky_volume', this.settings.volume);
                 localStorage.setItem('ky_segmentation', this.settings.segmentationMode);
+                localStorage.setItem('ky_epub_split', this.settings.epubSplitAtCommas);
+                localStorage.setItem('ky_tts_voice', this.settings.ttsVoice);
+                localStorage.setItem('ky_tts_rate', this.settings.ttsRate);
+                localStorage.setItem('ky_tts_auto', this.settings.ttsAutoPlay);
 
                 if (langChanged && Player.subs) {
                     Player.subs.forEach((s, idx) => {
@@ -1621,13 +1955,14 @@
             
             allBooks.forEach(book => {
                 const isActive = (book.id === activeId);
-                const isCached = isActive && cachedAudio;
+                const isCached = isActive && (book.isTextOnly || cachedAudio);
                 
                 const div = document.createElement('div');
                 div.className = 'lib-item';
                 if (isActive && isCached) div.classList.add('active-book');
                 
                 let badges = '';
+                if (book.isTextOnly) badges += '<span class="badge" style="background:rgba(3,218,198,0.2); color:#03dac6; border:1px solid #03dac6;">Reader</span> ';
                 if (isActive && isCached) badges += '<span class="badge playing">Now Playing</span> ';
                 else if (book.handle) badges += '<span class="badge linked">Linked</span> ';
                 
@@ -1643,12 +1978,16 @@
                     imgHtml = `<img class="lib-cover" src="${url}">`;
                 }
 
+                const progressStr = book.isTextOnly 
+                    ? `Line ${Math.floor(book.progress || 0)} / ${Math.floor(book.duration || 0)}`
+                    : `${Utils.fmtTime(book.progress)} / ${Utils.fmtTime(book.duration)}`;
+
                 div.innerHTML = `
                 <div style="display:flex; align-items:center; flex:1; height:100%; overflow:hidden;" onclick="App.loadBookFromHistory('${book.id}')">
                     ${imgHtml}
                     <div class="lib-info">
                         <div class="lib-title">${book.title}</div>
-                        <div class="lib-meta">${Utils.fmtTime(book.progress)} / ${Utils.fmtTime(book.duration)} ${badges}</div>
+                        <div class="lib-meta">${progressStr} ${badges}</div>
                         ${wordStats}
                         <div class="progress-bar-mini"><div class="progress-fill-mini" style="width:${durPct}%"></div></div>
                     </div>
@@ -1783,37 +2122,49 @@
             await this.loadBookFromHistory(bookId, time);
         },
         async handleFiles(files) {
-            document.getElementById('loading-overlay').classList.remove('hidden');
+            this.setLoading(true, "Loading Book...");
             setTimeout(async () => {
                 try {
-                    let audioFile = null, srtFile = null, jsonFile = null;
+                    let audioFile = null, srtFile = null, jsonFile = null, epubFile = null;
                     const getExt = (name) => name.split('.').pop().toLowerCase();
                     for (let f of files) {
                         const ext = getExt(f.name);
                         if (['mp3','m4b','aac','mp4','m4a'].includes(ext)) audioFile = f;
                         if (ext === 'srt') srtFile = f;
                         if (ext === 'json') jsonFile = f;
+                        if (ext === 'epub') epubFile = f;
                     }
-                    if (audioFile) {
-                        const id = "b_" + Math.abs(this.hashCode(audioFile.name));
+                    if (audioFile || epubFile) {
+                        const fileToHash = audioFile || epubFile;
+                        const id = (audioFile ? "b_" : "e_") + Math.abs(this.hashCode(fileToHash.name));
                         let meta = (await DB.getAllMetadata()).find(b => b.id === id);
                         if (!meta) {
                             meta = {
-                                id: id, title: audioFile.name.replace(/\.(mp3|m4b|aac|mp4|m4a)$/i, ''),
+                                id: id, title: fileToHash.name.replace(/\.(mp3|m4b|aac|mp4|m4a|epub)$/i, ''),
                                 duration: 0, progress: 0, lastPlayed: Date.now(), subs: [], chapters: [], bookmarks: [], cover: null,
                                 totalWords: 0, readWords: 0
                             };
                         }
-                        if (audioFile.handle) meta.handle = audioFile.handle;
-                        if (!meta.bookmarks) meta.bookmarks = []; // Schema migration
+                        const handleToSave = audioFile?.handle || epubFile?.handle;
+                        if (handleToSave) meta.handle = handleToSave;
+                        if (!meta.bookmarks) meta.bookmarks = []; 
                         
-                        let parsed = {};
-                        if (getExt(audioFile.name) === 'mp3') parsed = await ID3Parser.parse(audioFile);
-                        else parsed = await M4BParser.parse(audioFile);
-                        
-                        if (parsed.chapters && parsed.chapters.length) meta.chapters = parsed.chapters;
-                        if (parsed.cover) meta.cover = parsed.cover;
-                        if (parsed.tags && parsed.tags.Title && meta.progress === 0) meta.title = parsed.tags.Title;
+                        if (audioFile) {
+                            let parsed = {};
+                            if (getExt(audioFile.name) === 'mp3') parsed = await ID3Parser.parse(audioFile);
+                            else parsed = await M4BParser.parse(audioFile);
+                            
+                            if (parsed.chapters && parsed.chapters.length) meta.chapters = parsed.chapters;
+                            if (parsed.cover) meta.cover = parsed.cover;
+                            if (parsed.tags && parsed.tags.Title && meta.progress === 0) meta.title = parsed.tags.Title;
+                            await DB.setActiveAudio(audioFile);
+                            this.activeAudioBlob = audioFile;
+                        } else if (epubFile) {
+                            const parsed = await EPUBParser.parse(epubFile);
+                            meta = { ...meta, ...parsed };
+                            await DB.clearActive(); // Clean up audio if playing EPUB
+                            this.activeAudioBlob = null;
+                        }
 
                         if (srtFile) {
                             meta.subs = await this.parseSrt(srtFile);
@@ -1821,20 +2172,19 @@
                         }
                         if (jsonFile) meta.chapters = await this.parseJsonChapters(jsonFile);
                         
-                        await DB.setActiveAudio(audioFile);
                         await DB.saveMetadata(meta);
                         localStorage.setItem('activeBookId', id);
                         this.currentBook = meta;
-                        this.activeAudioBlob = audioFile;
                         this.launchPlayer();
-                    } else if (srtFile) { alert("Please drop the audio file too, or drag the .srt file into the player once the audio is loaded."); }
-                    else { alert("Please drop the Audio File."); }
+                    } else if (srtFile) { alert("Please drop the audio/epub file too."); }
+                    else { alert("Please drop an Audio File or EPUB."); }
                 } catch (e) { console.error(e); alert("Error processing file."); } 
-                finally { document.getElementById('loading-overlay').classList.add('hidden'); }
+                finally { this.setLoading(false); }
             }, 50);
         },
         async handleSrtUpload(file) {
             if (!file || !this.currentBook) return;
+            this.setLoading(true, "Parsing SRT...");
             try {
                 const subs = await this.parseSrt(file);
                 this.currentBook.subs = subs;
@@ -1844,45 +2194,53 @@
                 Player.subs = subs;
                 Player.renderSubs();
                 Player.syncSub();
+                this.setLoading(false);
                 alert("Subtitles loaded!");
-            } catch(e) { alert("Failed to parse SRT"); }
+            } catch(e) { 
+                this.setLoading(false);
+                alert("Failed to parse SRT"); 
+            }
         },
         async loadBookFromHistory(id, seekTo = null) {
             const books = await DB.getAllMetadata();
             const book = books.find(b => b.id === id);
             if(!book) return;
             
-            // Ensure schema
             if(!book.bookmarks) book.bookmarks = [];
 
             const activeId = localStorage.getItem('activeBookId');
             if (activeId === book.id) {
                 const blob = await DB.getActiveAudio();
-                if (blob) { 
-                    this.currentBook = book; this.activeAudioBlob = blob; 
+                if (blob || book.isTextOnly) { 
+                    this.currentBook = book; this.activeAudioBlob = blob || null; 
                     this.launchPlayer(seekTo); return; 
                 }
             }
     
             if (book.handle) {
+                this.setLoading(true, "Opening File...");
                 try {
                     const perm = await book.handle.queryPermission({ mode: 'read' });
                     if (perm === 'granted' || (await book.handle.requestPermission({ mode: 'read' })) === 'granted') {
                         const file = await book.handle.getFile();
                         file.handle = book.handle;
-                        await DB.setActiveAudio(file);
+                        if (!book.isTextOnly) await DB.setActiveAudio(file);
                         localStorage.setItem('activeBookId', book.id);
                         this.currentBook = book;
-                        this.activeAudioBlob = file;
+                        this.activeAudioBlob = book.isTextOnly ? null : file;
                         this.launchPlayer(seekTo);
+                        this.setLoading(false);
                         return;
                     }
-                } catch (e) { console.warn(e); }
+                } catch (e) { 
+                    console.warn(e); 
+                    this.setLoading(false);
+                }
             }
     
             this.pendingBookId = id;
             this.pendingSeek = seekTo;
-            document.getElementById('req-filename').textContent = book.title + " (Audio File)";
+            document.getElementById('req-filename').textContent = book.title + (book.isTextOnly ? " (EPUB File)" : " (Audio File)");
             document.getElementById('modal-file-req').classList.remove('hidden');
         },
         pendingBookId: null,
@@ -2025,7 +2383,6 @@
         animId: null,
         updateProgressBars() {
             if (!App.settings.showSubProgress) {
-                // Hide bars if disabled
                 const fsb = document.getElementById('focus-progress-fill');
                 if (fsb) fsb.style.width = "0%";
                 if (this.activeIndex !== -1) {
@@ -2035,8 +2392,8 @@
                 return;
             }
             const t = this.audio.currentTime;
+            const dur = this.meta.duration || this.audio.duration || 1;
             
-            // Subtitle Progress
             if (this.activeIndex !== -1) {
                 const s = this.subs[this.activeIndex];
                 const pct = Math.min(100, Math.max(0, ((t - s.start) / (s.end - s.start)) * 100));
@@ -2049,45 +2406,105 @@
                 if (fsb) fsb.style.width = "0%";
             }
 
-            // Main Seek Bar Smoothness
-            if (!this.isSeeking && this.audio.duration > 0) {
-                this.elFill.style.width = (t / this.audio.duration * 100) + "%";
+            if (!this.isSeeking && dur > 0) {
+                this.elFill.style.width = (t / dur * 100) + "%";
+            }
+
+            if (this.meta.isTextOnly) {
+                const timeline = document.querySelector('.timeline-container');
+                const currentSeg = Math.floor(t);
+                const totalSeg = Math.floor(dur);
+                if (timeline) timeline.setAttribute('data-segments', `Line ${currentSeg} / ${totalSeg}`);
             }
         },
         animate() {
-            if (this.audio.paused) return;
+            if (this.audio.paused && !this.meta.isTextOnly) return;
+            if (this.meta.isTextOnly && this.isPaused) return; // Custom pause for text-only
+            
+            if (this.meta.isTextOnly) {
+                // Manually increment time if "playing" in text-only mode
+                const now = Date.now();
+                const delta = (now - (this.lastAnimTime || now)) / 1000;
+                this.lastAnimTime = now;
+                if (!this.isPaused) {
+                    // In Storyteller Mode, we don't increment time manually anymore.
+                    // Instead, TTS.onend triggers nextSub().
+                }
+                this.syncSub();
+                this.elSeek.value = this.audio.currentTime;
+                this.elTCurr.textContent = Utils.fmtTime(this.audio.currentTime);
+            }
+
             this.updateProgressBars();
             this.animId = requestAnimationFrame(() => this.animate());
         },
+        lastAnimTime: 0,
+        isPaused: true,
     
         load(meta, blob, seekTo = null) {
             this.meta = meta; this.subs = meta.subs || [];
             if(!this.meta.bookmarks) this.meta.bookmarks = [];
             
+            const playerEl = document.getElementById('view-player');
+            if (meta.isTextOnly) playerEl.classList.add('mode-reader');
+            else playerEl.classList.remove('mode-reader');
+
             this.elTitle.textContent = meta.title;
-            this.audio.src = URL.createObjectURL(blob);
+            this.isPaused = true;
+            
+            if (blob) {
+                this.audio.src = URL.createObjectURL(blob);
+                this.audio.load();
+            } else {
+                this.audio.src = ""; // Clear audio
+            }
+
             this.audio.volume = App.settings.volume;
             this.audio.currentTime = seekTo !== null ? seekTo : (meta.progress || 0);
             
             this.renderSubs(); this.renderChapters();
-            this.audio.onloadedmetadata = () => {
-                this.elSeek.max = this.audio.duration;
-                this.elTTotal.textContent = Utils.fmtTime(this.audio.duration);
-                if (this.meta.duration !== this.audio.duration) { this.meta.duration = this.audio.duration; this.save(); }
+            
+            const onLoaded = () => {
+                const dur = this.meta.isTextOnly ? this.meta.duration : this.audio.duration;
+                this.elSeek.max = dur;
+                this.elTTotal.textContent = Utils.fmtTime(dur);
+                if (!this.meta.isTextOnly && this.meta.duration !== this.audio.duration) { 
+                    this.meta.duration = this.audio.duration; this.save(); 
+                }
                 this.renderMarkers();
-                if(seekTo !== null) this.audio.currentTime = seekTo; // Ensure seek
+                if(seekTo !== null) this.audio.currentTime = seekTo;
+                this.updateProgressBars();
+                
+                // Ensure active sub is highlighted and scrolled into view on start
+                this.syncSub();
+                const activeEl = document.getElementById(`s-${this.activeIndex}`);
+                if (activeEl) {
+                    setTimeout(() => {
+                        activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 100);
+                }
             };
+
+            if (this.meta.isTextOnly) {
+                onLoaded();
+            } else {
+                this.audio.onloadedmetadata = onLoaded;
+            }
+
             this.audio.ontimeupdate = () => {
+                if (this.meta.isTextOnly) return; // Handled in animate() for text-only
                 if (!this.isSeeking) { 
                     this.elSeek.value = this.audio.currentTime; 
                     this.elTCurr.textContent = Utils.fmtTime(this.audio.currentTime); 
-                    if(this.audio.duration > 0) this.elFill.style.width = (this.audio.currentTime / this.audio.duration * 100) + "%";
+                    const dur = this.audio.duration;
+                    if(dur > 0) this.elFill.style.width = (this.audio.currentTime / dur * 100) + "%";
                 }
                 this.syncSub(); this.syncChapterActive();
                 if (Math.floor(this.audio.currentTime) % 10 === 0) this.save();
             };
-            this.audio.onplay = () => { this.updateBtn(); this.animate(); };
+            this.audio.onplay = () => { this.isPaused = false; this.updateBtn(); this.lastAnimTime = Date.now(); this.animate(); };
             this.audio.onpause = () => { 
+                this.isPaused = true;
                 this.updateBtn(); 
                 this.save(); 
                 if (this.animId) cancelAnimationFrame(this.animId);
@@ -2140,7 +2557,7 @@
                     const ankiCol = document.createElement('div');
                     ankiCol.className = 'star-col';
                     const ankiBtn = document.createElement('span');
-                    ankiBtn.className = 'star-btn';
+                    ankiBtn.className = 'star-btn anki-audio-btn';
                     ankiBtn.textContent = '◆';
                     ankiBtn.title = "Enhance recent Anki card";
                     ankiBtn.dataset.ankiSub = i;
@@ -2169,6 +2586,17 @@
                     transBtn.onclick = (e) => { e.stopPropagation(); App.translateSub(i, transBtn); };
                     transCol.appendChild(transBtn);
                     li.appendChild(transCol);
+
+                    // --- Speak Column ---
+                    const speakCol = document.createElement('div');
+                    speakCol.className = 'star-col';
+                    const speakBtn = document.createElement('div');
+                    speakBtn.className = 'trans-btn';
+                    speakBtn.textContent = '🔊';
+                    speakBtn.title = "Speak aloud";
+                    speakBtn.onclick = (e) => { e.stopPropagation(); TTS.speak(s.text); };
+                    speakCol.appendChild(speakBtn);
+                    li.appendChild(speakCol);
 
                     // --- Text Column (Segmented) ---
                     txtCol = document.createElement('div');
@@ -2328,6 +2756,11 @@
                     const el = document.getElementById(`s-${idx}`);
                     if(el) { el.classList.add('active'); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); text = subs[idx].text; }
                     this.elFocusAnkiBtn?.classList.remove('hidden');
+                    if (this.meta.isTextOnly && !this.isPaused) {
+                        TTS.speak(text, () => {
+                            if (!this.isPaused) this.nextSub();
+                        });
+                    }
                 } else {
                     this.elFocusAnkiBtn?.classList.add('hidden');
                 }
@@ -2356,14 +2789,39 @@
                 }
             }
         },
-        pause() { this.audio.pause(); },
-        togglePlay() { this.audio.paused ? this.audio.play() : this.audio.pause(); },
+        pause() { if(this.meta.isTextOnly) { this.isPaused = true; this.updateBtn(); this.save(); } else this.audio.pause(); },
+        togglePlay() {
+            if (this.meta.isTextOnly) {
+                this.isPaused = !this.isPaused;
+                this.updateBtn();
+                if (!this.isPaused) { 
+                    this.lastAnimTime = Date.now(); 
+                    this.animate(); 
+                    if (this.activeIndex !== -1) {
+                        TTS.speak(this.subs[this.activeIndex].text, () => {
+                            if (!this.isPaused) this.nextSub();
+                        });
+                    }
+                }
+                else {
+                    this.save();
+                    TTS.stop();
+                }
+            } else {
+                if (this.audio.paused) {
+                    this.audio.play();
+                } else {
+                    this.audio.pause();
+                }
+            }
+        },
         prevSub() {
             if(this.subs.length > 0) {
                 let target = -1;
                 if (this.activeIndex > -1) target = Math.max(0, this.activeIndex - 1);
                 else { const t = this.audio.currentTime; for(let i=0; i<this.subs.length; i++) if (this.subs[i].end < t) target = i; else break; }
                 if (target > -1) this.audio.currentTime = this.subs[target].start + 0.001;
+                if (this.meta.isTextOnly) { this.syncSub(); this.updateProgressBars(); }
             } else { this.audio.currentTime = Math.max(0, this.audio.currentTime - 15); }
         },
         nextSub() {
@@ -2372,12 +2830,17 @@
                 if (this.activeIndex > -1) target = Math.min(this.subs.length - 1, this.activeIndex + 1);
                 else { const t = this.audio.currentTime; for(let i=0; i<this.subs.length; i++) if (this.subs[i].start > t) { target = i; break; } }
                 if (target > -1) this.audio.currentTime = this.subs[target].start + 0.001;
-            } else { this.audio.currentTime = Math.min(this.audio.duration, this.audio.currentTime + 15); }
+                if (this.meta.isTextOnly) { this.syncSub(); this.updateProgressBars(); }
+            } else { 
+                const dur = this.meta.isTextOnly ? this.meta.duration : this.audio.duration;
+                this.audio.currentTime = Math.min(dur, this.audio.currentTime + 15); 
+            }
         },
         replaySub() {
             if(this.subs.length > 0) {
                 if (this.activeIndex > -1) { this.audio.currentTime = this.subs[this.activeIndex].start + 0.001; }
                 else { const t = this.audio.currentTime; let last = -1; for(let i=0; i<this.subs.length; i++) if (this.subs[i].start <= t) last = i; else break; if (last > -1) this.audio.currentTime = this.subs[last].start + 0.001; }
+                if (this.meta.isTextOnly) { this.syncSub(); this.updateProgressBars(); }
             } else { this.audio.currentTime = Math.max(0, this.audio.currentTime - 5); }
         },
         prevChap() {
@@ -2395,7 +2858,10 @@
             for(let i=0; i<chaps.length; i++) if(this.getChapTime(chaps[i]) > t) { target = i; break; }
             if (target > -1) this.audio.currentTime = this.getChapTime(chaps[target]);
         },
-        updateBtn() { this.elBtnPlay.textContent = this.audio.paused ? "▶" : "❚❚"; },
+        updateBtn() { 
+            const paused = this.meta.isTextOnly ? this.isPaused : this.audio.paused;
+            this.elBtnPlay.textContent = paused ? "▶" : "❚❚"; 
+        },
         save() { 
         if (!this.meta) return; 
         this.meta.progress = this.audio.currentTime; 
@@ -2409,11 +2875,20 @@
             App.sessionStartTime = now; // Reset for next chunk
             // Update words read
             if (this.subs && this.subs.length > 0 && this.activeIndex !== -1) {
-                let readCount = 0;
-                for (let i = 0; i <= this.activeIndex; i++) {
-                    readCount += App.countWords(this.subs[i].text);
+                if (this.meta.isTextOnly) {
+                    // For EPUBs, we can use the index to estimate or sum up
+                    let readCount = 0;
+                    for (let i = 0; i <= this.activeIndex; i++) {
+                        readCount += App.countWords(this.subs[i].text);
+                    }
+                    this.meta.readWords = readCount;
+                } else {
+                    let readCount = 0;
+                    for (let i = 0; i <= this.activeIndex; i++) {
+                        readCount += App.countWords(this.subs[i].text);
+                    }
+                    this.meta.readWords = readCount;
                 }
-                this.meta.readWords = readCount;
             }
         }
         
@@ -2506,6 +2981,9 @@
                         App.translateSub(Player.activeIndex, btn);
                     }
                 }
+                else if(k==='KeyR' || key==='r') {
+                    if (Player.activeIndex !== -1) TTS.speak(Player.subs[Player.activeIndex].text);
+                }
             });
             window.addEventListener("gamepadconnected", () => {
                 if(!this.polling) { this.polling = true; requestAnimationFrame(this.poll.bind(this)); }
@@ -2549,6 +3027,10 @@
                         const idx = App.words[App.activeWordIndex || 0]?.subIndex ?? Player.activeIndex;
                         if (idx !== -1) App.translateSub(idx, document.querySelector(`#s-${idx} .trans-btn`));
                     }); // X Button
+                    this.checkBtn(gp, 8, () => {
+                        const idx = App.words[App.activeWordIndex || 0]?.subIndex ?? Player.activeIndex;
+                        if (idx !== -1) TTS.speak(Player.subs[idx].text);
+                    }); // Select / Share Button
                     this.checkBtn(gp, 7, () => App.toggleSegmentationMode()); // R2 / RT
                     this.checkBtn(gp, 9, () => App.enhanceAnkiCard()); // Options/Start
                 } else {
@@ -2556,6 +3038,9 @@
                     this.checkBtn(gp, 2, () => {
                         if (Player.activeIndex !== -1) App.translateSub(Player.activeIndex, document.querySelector(`#s-${Player.activeIndex} .trans-btn`));
                     }); // X Button
+                    this.checkBtn(gp, 8, () => {
+                        if (Player.activeIndex !== -1) TTS.speak(Player.subs[Player.activeIndex].text);
+                    }); // Select / Share Button
                     this.checkBtn(gp, 3, () => App.toggleFocusMode());
                     this.checkBtn(gp, 9, () => App.enhanceAnkiCard()); // Options/Start
                     this.checkBtn(gp, 14, () => Player.prevSub()); 
