@@ -567,6 +567,18 @@
             </div>
 
             <div class="setting-section">
+                <div class="setting-section-title">Data Management</div>
+                <div class="setting-row">
+                    <label>Library Data</label>
+                    <div class="setting-input-group">
+                        <button class="btn" onclick="DataManager.export()">Export JSON</button>
+                        <button class="btn" onclick="DataManager.import()">Import JSON</button>
+                    </div>
+                </div>
+                <div class="setting-hint">Backup or transfer your settings, history, and stats across devices.</div>
+            </div>
+
+            <div class="setting-section">
                 <div class="setting-section-title">Playback & Debug</div>
                 <div class="setting-row"><label>Fill Silence (Gaps)</label><input type="checkbox" id="opt-fill" checked onchange="App.applySettings()" style="width:20px; height:20px; accent-color: var(--primary);"></div>
                 <div class="setting-row"><label>Show Input Debug Overlay</label><input type="checkbox" id="opt-debug" onchange="App.applySettings()" style="width:20px; height:20px; accent-color: var(--primary);"></div>
@@ -1007,6 +1019,154 @@
                 pos += 10 + size;
             }
             return meta;
+        }
+    };
+
+    const DataManager = {
+        async export() {
+            try {
+                App.setLoading(true, "Preparing Backup...");
+                const backup = {
+                    localStorage: {},
+                    metadata: []
+                };
+
+                // 1. Collect LocalStorage
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key.startsWith('ky_')) {
+                        backup.localStorage[key] = localStorage.getItem(key);
+                    }
+                }
+
+                // 2. Collect Metadata (with Base64 conversion for blobs)
+                const allMeta = await DB.getAllMetadata();
+                for (let book of allMeta) {
+                    const bookCopy = { ...book };
+                    if (bookCopy.cover && bookCopy.cover.blob) {
+                        // Convert blob to base64 for JSON portability
+                        bookCopy.coverBase64 = await new Promise(r => {
+                            const reader = new FileReader();
+                            reader.onloadend = () => r(reader.result);
+                            reader.readAsDataURL(bookCopy.cover.blob);
+                        });
+                        delete bookCopy.cover; // Remove blob
+                    }
+                    backup.metadata.push(bookCopy);
+                }
+
+                const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `kikiyomi_backup_${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                App.showToast("✅ Backup downloaded");
+            } catch (e) {
+                console.error("Export failed:", e);
+                App.showToast("❌ Export failed", true);
+            } finally {
+                App.setLoading(false);
+            }
+        },
+        async import() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                try {
+                    const text = await file.text();
+                    const backup = JSON.parse(text);
+                    
+                    if (!backup.localStorage || !backup.metadata) {
+                        throw new Error("Invalid backup format: Missing data blocks.");
+                    }
+
+                    if (!confirm("This will overwrite your current history, settings, and stats. Continue?")) return;
+
+                    App.setLoading(true, "Restoring Data...");
+                    
+                    // 1. Clear & Restore LocalStorage
+                    for (let i = localStorage.length - 1; i >= 0; i--) {
+                        const key = localStorage.key(i);
+                        if (key.startsWith('ky_')) localStorage.removeItem(key);
+                    }
+                    for (const [key, value] of Object.entries(backup.localStorage)) {
+                        localStorage.setItem(key, value);
+                    }
+
+                    // 2. Clear & Restore Metadata
+                    const existingMeta = await DB.getAllMetadata();
+                    for (let m of existingMeta) await DB.deleteMetadata(m.id);
+                    
+                    for (let book of backup.metadata) {
+                        if (book.coverBase64) {
+                            const res = await fetch(book.coverBase64);
+                            const blob = await res.blob();
+                            book.cover = { blob, mime: blob.type };
+                            delete book.coverBase64;
+                        }
+                        await DB.saveMetadata(book);
+                    }
+
+                    App.showToast("✅ Data restored! Reloading...");
+                    setTimeout(() => location.reload(), 1500);
+                } catch (err) {
+                    console.error("Import failed:", err);
+                    App.showToast("❌ Import failed: " + err.message, true);
+                } finally {
+                    App.setLoading(false);
+                }
+            };
+            input.click();
+        },
+        async setManualCover(bookHash) {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                App.setLoading(true, "Processing Cover...");
+                try {
+                    const bitmap = await createImageBitmap(file);
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    
+                    const max = 256;
+                    let w = bitmap.width, h = bitmap.height;
+                    if (w > h) { if (w > max) { h *= max / w; w = max; } }
+                    else { if (h > max) { w *= max / h; h = max; } }
+                    
+                    canvas.width = w; canvas.height = h;
+                    ctx.drawImage(bitmap, 0, 0, w, h);
+                    const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.6));
+                    
+                    const meta = (await DB.getAllMetadata()).find(b => b.id === bookHash);
+                    if (meta) {
+                        meta.cover = { blob, mime: 'image/jpeg' };
+                        await DB.saveMetadata(meta);
+                        App.showToast("✅ Cover updated");
+                        App.renderLibrary();
+                        if (Player.meta && Player.meta.id === bookHash) {
+                            Player.meta.cover = meta.cover;
+                        }
+                    }
+                } catch (err) {
+                    console.error("Cover update failed:", err);
+                    App.showToast("❌ Cover update failed", true);
+                } finally {
+                    App.setLoading(false);
+                }
+            };
+            input.click();
         }
     };
 
@@ -1992,7 +2152,10 @@
                         <div class="progress-bar-mini"><div class="progress-fill-mini" style="width:${durPct}%"></div></div>
                     </div>
                 </div>
-                <button class="del-btn" onclick="App.deleteBook('${book.id}', event)">×</button>`;
+                <div style="display:flex; height:100%;">
+                    <button class="del-btn" title="Set Cover" onclick="DataManager.setManualCover('${book.id}', event)" style="padding:0 10px; font-size:1rem;">🖼️</button>
+                    <button class="del-btn" title="Delete History" onclick="App.deleteBook('${book.id}', event)">×</button>
+                </div>`;
                 list.appendChild(div);
             });
             
