@@ -41,6 +41,7 @@
 | :--- | :--- | :--- |
 | Move Word L / R | B / M | D-pad L / R |
 | **Trigger Yomitan** | **Enter / Space**| **A / Cross (0)** |
+| **Switch Mode (Word/Char)** | **V** | **RT / R2 (7)** |
 | **Anki Integration** | **C** | **Menu / Options (9)** |
 | **Translate Line** | **T** | **X / Square (2)** |
 | Exit Word Nav | N | LT / L2 (6) |

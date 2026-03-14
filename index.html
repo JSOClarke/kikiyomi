@@ -456,6 +456,28 @@
             border: 1px solid #040;
             display: none;
         }
+        .history-item {
+            padding: 12px;
+            border-bottom: 1px solid #222;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .history-meta {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+        }
+        .history-text {
+            font-size: 0.95rem;
+            color: #eee;
+            line-height: 1.4;
+        }
+        .history-book {
+            color: var(--primary);
+            font-style: italic;
+        }
     </style>
     </head>
     <body onload="console.log('Kikiyomi: Body Onload')">
@@ -467,7 +489,7 @@
     
     <div id="loading-overlay" class="modal-overlay hidden">
         <div class="spinner"></div>
-        <div style="color:white; font-weight:bold; letter-spacing:1px;">Processing...</div>
+        <div id="loading-text" style="color:white; font-weight:bold; letter-spacing:1px;">Processing...</div>
     </div>
 
     <!-- FILE REQUEST MODAL -->
@@ -590,6 +612,20 @@
             <div style="text-align: right; margin-top:25px;"><button class="btn btn-primary" onclick="App.toggleModal('modal-stats')">Done</button></div>
         </div>
     </div>
+    
+    <!-- MINING HISTORY -->
+    <div id="modal-history" class="modal-overlay hidden" onclick="if(event.target===this) App.toggleModal('modal-history')">
+        <div class="modal" style="max-height: 85vh; display: flex; flex-direction: column;">
+            <h2 style="margin-top:0; color: var(--primary);">Mining History</h2>
+            <div id="history-list" style="flex: 1; overflow-y: auto; margin-bottom: 20px; min-height: 200px; border: 1px solid #222; border-radius: 4px;">
+                <!-- Logs will be rendered here -->
+            </div>
+            <div style="text-align: right; display: flex; justify-content: space-between;">
+                <button class="btn" onclick="App.clearMiningHistory()" style="border-color: var(--warn); color: var(--warn);">Clear All</button>
+                <button class="btn btn-primary" onclick="App.toggleModal('modal-history')">Close</button>
+            </div>
+        </div>
+    </div>
 
     <!-- HELP -->
     <div id="modal-help" class="modal-overlay hidden" onclick="if(event.target===this) App.toggleModal('modal-help')">
@@ -612,6 +648,7 @@
             <table class="key-table">
                 <tr><td>Move Word Left / Right</td><td>B / M &nbsp;·&nbsp; GP: D-pad ←/→</td></tr>
                 <tr><td>Open Yomitan on Word</td><td>Enter / Space &nbsp;·&nbsp; GP: A / Cross</td></tr>
+                <tr><td>Switch Word/Char Mode</td><td>V &nbsp;·&nbsp; GP: R2 / RT</td></tr>
                 <tr><td>Anki Integration</td><td>C &nbsp;·&nbsp; GP: Options / Menu</td></tr>
                 <tr><td>Translate Line</td><td>T &nbsp;·&nbsp; GP: X / Square</td></tr>
             </table>
@@ -658,6 +695,7 @@
             </div>
             <div style="display:flex; align-items: center; z-index: 2;">
                 <button class="btn" onclick="App.showStats()" style="margin-right:5px" title="Statistics">Stats</button>
+                <button class="btn" onclick="App.showHistory()" style="margin-right:5px" title="Mining History">History</button>
                 <button class="btn" onclick="App.showBookmarks()" style="margin-right:5px">★</button>
                 <button class="btn" onclick="App.toggleChapters()" style="margin-right:5px">Chapters</button>
                 <button class="btn" onclick="App.toggleFocusMode()" style="margin-right:5px">Focus</button>
@@ -1137,7 +1175,7 @@
         words: [], activeWordIndex: 0, navigationActive: false,
         activeCoverFilename: null, // Cached Anki media filename for the current book's cover
         sessionStartTime: null, // To track time spent in current session
-        settings: { font: '', size: 36, fillGap: true, bold: false, focusWidth: 90, activeScale: 1.05, ankiField: 'Sentence Audio', ankiPictureField: 'Picture', ankiAddCover: true, showSubProgress: true, showDebug: false, targetLang: 'en', volume: 1.0 },
+        settings: { font: '', size: 36, fillGap: true, bold: false, focusWidth: 90, activeScale: 1.05, ankiField: 'Sentence Audio', ankiPictureField: 'Picture', ankiAddCover: true, showSubProgress: true, showDebug: false, targetLang: 'en', volume: 1.0, segmentationMode: 'word' },
         showToast(message, type = 'success', duration = 3000) {
             const toast = document.getElementById('toast');
             toast.textContent = message;
@@ -1292,6 +1330,9 @@
 
                         btnElement.style.color = 'var(--sec)';
                         App.showToast(msg, 'success');
+                        
+                        // Record to history
+                        App.recordMining(sub.text);
                     } else {
                         btnElement.style.color = 'red';
                         App.showToast('Failed to update card fields', 'error');
@@ -1379,6 +1420,61 @@
                 btnEl.style.animation = '';
             }
         },
+        countWords(text) {
+            if (!text) return 0;
+            // Simple word count for stats/history
+            return text.trim().split(/\s+/).filter(w => w.length > 0).length;
+        },
+        recordMining(text) {
+            if (!text) return;
+            try {
+                const history = JSON.parse(localStorage.getItem('ky_mining_history') || '[]');
+                const entry = {
+                    text: text,
+                    bookTitle: this.currentBook?.title || 'Unknown Book',
+                    timestamp: Date.now(),
+                };
+                history.unshift(entry); // Newest first
+                // Keep last 200 entries
+                localStorage.setItem('ky_mining_history', JSON.stringify(history.slice(0, 200)));
+            } catch (e) {
+                console.error("Failed to record mining history:", e);
+            }
+        },
+        showHistory() {
+            this.renderHistoryList();
+            this.toggleModal('modal-history');
+        },
+        renderHistoryList() {
+            const list = document.getElementById('history-list');
+            if (!list) return;
+            
+            let history = [];
+            try {
+                history = JSON.parse(localStorage.getItem('ky_mining_history') || '[]');
+            } catch (e) { console.error(e); }
+            
+            if (history.length === 0) {
+                list.innerHTML = '<div style="padding:40px; text-align:center; color:var(--text-muted);">No mining history yet.</div>';
+                return;
+            }
+            
+            list.innerHTML = history.map(item => `
+                <div class="history-item">
+                    <div class="history-meta">
+                        <span>${new Date(item.timestamp).toLocaleString()}</span>
+                        <span class="history-book">${item.bookTitle}</span>
+                    </div>
+                    <div class="history-text">${item.text}</div>
+                </div>
+            `).join('');
+        },
+        clearMiningHistory() {
+            if (confirm("Are you sure you want to clear your entire mining history?")) {
+                localStorage.removeItem('ky_mining_history');
+                this.renderHistoryList();
+            }
+        },
         loadSettings() {
             this.settings.theme = localStorage.getItem('ky_theme') || "kiku-dark";
             this.settings.font = localStorage.getItem('ky_font') || "system-ui, -apple-system, sans-serif";
@@ -1394,6 +1490,7 @@
             this.settings.showDebug = localStorage.getItem('ky_debug') === "true";
             this.settings.targetLang = localStorage.getItem('ky_lang') || "en";
             this.settings.volume = parseFloat(localStorage.getItem('ky_volume') || "1");
+            this.settings.segmentationMode = localStorage.getItem('ky_segmentation') || "word";
     
             document.getElementById('opt-theme').value = this.settings.theme;
             document.getElementById('opt-font').value = this.settings.font;
@@ -1410,6 +1507,8 @@
             document.getElementById('opt-lang').value = this.settings.targetLang;
             const volSlider = document.getElementById('volume-slider');
             if (volSlider) volSlider.value = this.settings.volume;
+            
+            this.updateNavIndicator();
             this.applySettings(true);
         },
         applySettings(isLoad=false) {
@@ -1443,6 +1542,7 @@
                 localStorage.setItem('ky_debug', this.settings.showDebug);
                 localStorage.setItem('ky_lang', this.settings.targetLang);
                 localStorage.setItem('ky_volume', this.settings.volume);
+                localStorage.setItem('ky_segmentation', this.settings.segmentationMode);
 
                 if (langChanged && Player.subs) {
                     Player.subs.forEach((s, idx) => {
@@ -1471,6 +1571,38 @@
             if (Player.meta) {
                 Player.audio.volume = this.settings.volume;
                 Player.syncSub(); 
+            }
+            this.updateNavIndicator();
+        },
+        toggleSegmentationMode() {
+            const overlay = document.getElementById('loading-overlay');
+            const loadText = document.getElementById('loading-text');
+            if (loadText) loadText.textContent = "Changing Segmentation Mode...";
+            if (overlay) overlay.classList.remove('hidden');
+
+            setTimeout(() => {
+                const currentActiveSub = Player.activeIndex;
+                this.settings.segmentationMode = this.settings.segmentationMode === 'word' ? 'character' : 'word';
+                this.updateNavIndicator();
+                localStorage.setItem('ky_segmentation', this.settings.segmentationMode);
+                Player.renderSubs(); // Instant reuse
+                
+                if (this.navigationActive && currentActiveSub !== -1) {
+                    const newWordIdx = this.words.findIndex(w => w.subIndex === currentActiveSub);
+                    if (newWordIdx !== -1) {
+                        this.activeWordIndex = newWordIdx;
+                        this.updateWordHighlight();
+                    }
+                }
+                if (overlay) overlay.classList.add('hidden');
+                if (loadText) loadText.textContent = "Processing..."; // Reset
+                this.showToast(`Mode: ${this.settings.segmentationMode.toUpperCase()}`);
+            }, 50);
+        },
+        updateNavIndicator() {
+            const ind = document.getElementById('nav-indicator');
+            if (ind) {
+                ind.textContent = `WORD NAV - ${this.settings.segmentationMode.toUpperCase()}`;
             }
         },
         toggleModal(id) { document.getElementById(id).classList.toggle('hidden'); },
@@ -1771,6 +1903,13 @@
             document.getElementById('view-library').classList.add('hidden');
             document.getElementById('view-player').classList.remove('hidden');
             this.sessionStartTime = Date.now();
+            
+            // Reset state for new book
+            this.activeCoverFilename = null;
+            this.activeWordIndex = 0;
+            this.navigationActive = false;
+            document.getElementById('nav-indicator').classList.add('hidden');
+            
             Player.load(this.currentBook, this.activeAudioBlob, seekTo);
         },
         showStats() {
@@ -1960,7 +2099,9 @@
             localStorage.setItem('ky_volume', val);
         },
         renderSubs() {
-            this.elSubList.innerHTML = '';
+            const reuse = this.elSubList.children.length === this.subs.length && this.subs.length > 0;
+            if (!reuse) this.elSubList.innerHTML = '';
+            
             if (this.subs.length === 0) { 
                 this.elSubList.innerHTML = `
                     <div class="srt-empty-container">
@@ -1976,72 +2117,105 @@
                 return; 
             }
             
-            const frag = document.createDocumentFragment();
-            const bookmarkedIndices = new Set(this.meta.bookmarks.map(b => b.subIndex));
+            const frag = reuse ? null : document.createDocumentFragment();
+            const bookmarkedIndices = reuse ? null : new Set(this.meta.bookmarks.map(b => b.subIndex));
             
             // Re-initialize segmenter and words array
             App.words = [];
-            const segmenter = window.Intl && window.Intl.Segmenter ? new Intl.Segmenter('ja', { granularity: 'word' }) : null;
+            const granularity = App.settings.segmentationMode === 'word' ? 'word' : 'grapheme';
+            const segmenter = window.Intl && window.Intl.Segmenter ? new Intl.Segmenter('ja', { granularity: granularity }) : null;
 
             this.subs.forEach((s, i) => {
-                const li = document.createElement('li'); 
-                li.id = `s-${i}`;
+                let li, txtCol;
                 
-                // --- Anki Audio Send Column ---
-                const ankiCol = document.createElement('div');
-                ankiCol.className = 'star-col';
-                const ankiBtn = document.createElement('span');
-                ankiBtn.className = 'star-btn';
-                ankiBtn.textContent = '◆';
-                ankiBtn.title = "Enhance recent Anki card";
-                ankiBtn.dataset.ankiSub = i;
-                ankiBtn.onclick = (e) => { e.stopPropagation(); App.attachAudioFromSub(i, ankiBtn); };
-                ankiCol.appendChild(ankiBtn);
-                li.appendChild(ankiCol);
+                if (reuse) {
+                    li = this.elSubList.children[i];
+                    txtCol = li.querySelector('.text-container');
+                    txtCol.innerHTML = ''; // Clear old segments
+                } else {
+                    li = document.createElement('li'); 
+                    li.id = `s-${i}`;
+                    
+                    // --- Anki Audio Send Column ---
+                    const ankiCol = document.createElement('div');
+                    ankiCol.className = 'star-col';
+                    const ankiBtn = document.createElement('span');
+                    ankiBtn.className = 'star-btn';
+                    ankiBtn.textContent = '◆';
+                    ankiBtn.title = "Enhance recent Anki card";
+                    ankiBtn.dataset.ankiSub = i;
+                    ankiBtn.onclick = (e) => { e.stopPropagation(); App.attachAudioFromSub(i, ankiBtn); };
+                    ankiCol.appendChild(ankiBtn);
+                    li.appendChild(ankiCol);
 
-                // --- Star Column ---
-                const starCol = document.createElement('div');
-                starCol.className = 'star-col';
-                const star = document.createElement('div');
-                star.className = 'star-btn';
-                star.textContent = '★';
-                if(bookmarkedIndices.has(i)) star.classList.add('filled');
-                star.onclick = (e) => { e.stopPropagation(); this.toggleBookmark(i, star); };
-                starCol.appendChild(star);
-                li.appendChild(starCol);
+                    // --- Star Column ---
+                    const starCol = document.createElement('div');
+                    starCol.className = 'star-col';
+                    const star = document.createElement('div');
+                    star.className = 'star-btn';
+                    star.textContent = '★';
+                    if(bookmarkedIndices.has(i)) star.classList.add('filled');
+                    star.onclick = (e) => { e.stopPropagation(); this.toggleBookmark(i, star); };
+                    starCol.appendChild(star);
+                    li.appendChild(starCol);
 
-                // --- Translate Column ---
-                const transCol = document.createElement('div');
-                transCol.className = 'star-col';
-                const transBtn = document.createElement('div');
-                transBtn.className = 'trans-btn';
-                transBtn.textContent = '文';
-                transBtn.title = "Translate line";
-                transBtn.onclick = (e) => { e.stopPropagation(); App.translateSub(i, transBtn); };
-                transCol.appendChild(transBtn);
-                li.appendChild(transCol);
+                    // --- Translate Column ---
+                    const transCol = document.createElement('div');
+                    transCol.className = 'star-col';
+                    const transBtn = document.createElement('div');
+                    transBtn.className = 'trans-btn';
+                    transBtn.textContent = '文';
+                    transBtn.title = "Translate line";
+                    transBtn.onclick = (e) => { e.stopPropagation(); App.translateSub(i, transBtn); };
+                    transCol.appendChild(transBtn);
+                    li.appendChild(transCol);
 
-                // --- Text Column (Segmented) ---
-                const txtCol = document.createElement('div');
-                txtCol.className = 'text-container';
+                    // --- Text Column (Segmented) ---
+                    txtCol = document.createElement('div');
+                    txtCol.className = 'text-container';
+                    
+                    const subTextWrapper = document.createElement('div');
+                    subTextWrapper.className = 'sub-text-wrapper';
+                    
+                    const translationDiv = document.createElement('div');
+                    translationDiv.id = `trans-${i}`;
+                    translationDiv.className = 'sub-translation hidden';
+                    
+                    subTextWrapper.appendChild(txtCol);
+                    subTextWrapper.appendChild(translationDiv);
+                    li.appendChild(subTextWrapper);
+
+                    // --- Copy Column ---
+                    const copyCol = document.createElement('div');
+                    copyCol.className = 'star-col';
+                    const copyBtn = document.createElement('button');
+                    copyBtn.className = 'sub-copy-btn';
+                    copyBtn.textContent = 'Copy';
+                    copyBtn.onclick = (e) => { e.stopPropagation(); App.copyText(s.text); };
+                    copyCol.appendChild(copyBtn);
+                    li.appendChild(copyCol);
+                    
+                    // --- Progress Bar ---
+                    const progress = document.createElement('div');
+                    progress.className = 'sub-progress';
+                    const fill = document.createElement('div');
+                    fill.className = 'sub-progress-fill';
+                    fill.id = `sb-${i}`;
+                    progress.appendChild(fill);
+                    li.appendChild(progress);
+                    
+                    li.onclick = () => { this.audio.currentTime = s.start + 0.001; };
+                    frag.appendChild(li);
+                }
                 
-                const subTextWrapper = document.createElement('div');
-                subTextWrapper.className = 'sub-text-wrapper';
-                
-                const translationDiv = document.createElement('div');
-                translationDiv.id = `trans-${i}`;
-                translationDiv.className = 'sub-translation hidden';
-                
+                // Add Segmented Spans
                 if (segmenter) {
                     const segments = segmenter.segment(s.text);
-                    let wordIndex = App.words.length; // Keep global index across all subtitles
                     for (const { segment } of segments) {
                         const span = document.createElement('span');
                         span.className = 'word';
                         span.textContent = segment;
-                        span.dataset.subIndex = i; // Link back to subtitle index
-                        
-                        // Let clicking a word seek like before, but prevent bubbling so we can select it later
+                        span.dataset.subIndex = i;
                         span.onclick = (e) => { 
                             if (!App.navigationActive) {
                                 this.audio.currentTime = s.start + 0.001; 
@@ -2051,43 +2225,15 @@
                                 App.updateWordHighlight();
                             }
                         };
-                        
                         txtCol.appendChild(span);
-                        App.words.push({ element: span, text: segment, index: wordIndex++, subIndex: i });
+                        App.words.push({ element: span, text: segment, index: App.words.length, subIndex: i });
                     }
                 } else {
-                    // Fallback if Segmenter is not supported
                     txtCol.textContent = s.text;
                 }
-
-                subTextWrapper.appendChild(txtCol);
-                subTextWrapper.appendChild(translationDiv);
-                li.appendChild(subTextWrapper);
-
-                // --- Copy Column ---
-                const copyCol = document.createElement('div');
-                copyCol.className = 'star-col'; // Professional spacing
-                const copyBtn = document.createElement('button');
-                copyBtn.className = 'sub-copy-btn';
-                copyBtn.textContent = 'Copy';
-                copyBtn.onclick = (e) => { e.stopPropagation(); App.copyText(s.text); };
-                copyCol.appendChild(copyBtn);
-                li.appendChild(copyCol);
-                
-                // --- Progress Bar ---
-                const progress = document.createElement('div');
-                progress.className = 'sub-progress';
-                const fill = document.createElement('div');
-                fill.className = 'sub-progress-fill';
-                fill.id = `sb-${i}`;
-                progress.appendChild(fill);
-                li.appendChild(progress);
-                
-                // Click Behavior: Just Seek (if clicking empty space in li)
-                li.onclick = () => { this.audio.currentTime = s.start + 0.001; };
-                frag.appendChild(li);
             });
-            this.elSubList.appendChild(frag);
+            
+            if (!reuse) this.elSubList.appendChild(frag);
         },
         toggleBookmark(index, starEl) {
             const existsIdx = this.meta.bookmarks.findIndex(b => b.subIndex === index);
@@ -2104,6 +2250,7 @@
                     created: Date.now()
                 });
                 starEl.classList.add('filled');
+                App.recordMining(s.text);
             }
             this.save();
         },
@@ -2341,6 +2488,7 @@
                     else if (k === 'ArrowRight' || key === 'arrowright' || key === 'm') { e.preventDefault(); App.moveWordRight(); }
                     else if (k === 'Enter' || key === 'enter' || key === ' ') { e.preventDefault(); App.triggerYomitan(); }
                     else if (k === 'KeyC' || key === 'c') { e.preventDefault(); App.triggerAnkiCard(); }
+                    else if (k === 'KeyV' || key === 'v') { e.preventDefault(); App.toggleSegmentationMode(); }
                     return; // Interdict normal playback controls
                 }
 
@@ -2401,6 +2549,7 @@
                         const idx = App.words[App.activeWordIndex || 0]?.subIndex ?? Player.activeIndex;
                         if (idx !== -1) App.translateSub(idx, document.querySelector(`#s-${idx} .trans-btn`));
                     }); // X Button
+                    this.checkBtn(gp, 7, () => App.toggleSegmentationMode()); // R2 / RT
                     this.checkBtn(gp, 9, () => App.enhanceAnkiCard()); // Options/Start
                 } else {
                     this.checkBtn(gp, 0, () => Player.togglePlay()); 
@@ -2414,7 +2563,6 @@
                     this.checkBtn(gp, 13, () => Player.replaySub()); 
                     this.checkBtn(gp, 4, () => Player.prevChap());
                     this.checkBtn(gp, 5, () => Player.nextChap()); 
-                    this.checkBtn(gp, 7, () => Player.nextChap());
                     const axisX = gp.axes[0], axisY = gp.axes[1];
                     if (axisX < -0.5) this.triggerAxis('axLeft', () => Player.prevSub()); 
                     else if (axisX > 0.5) this.triggerAxis('axRight', () => Player.nextSub()); 
