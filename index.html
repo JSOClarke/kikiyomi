@@ -762,9 +762,9 @@
             <input type="file" id="file-input" hidden multiple accept=".mp3,.m4b,.aac,.m4a,.srt,.json,.epub">
         </div>
         
-        <div style="width:100%; border-bottom:1px solid #333; margin-bottom: 15px; padding-bottom:5px; color:#aaa; font-size:0.9rem; font-weight:bold;">Library Details</div>
-        <div id="library-list"></div>
-        <div class="version-footer">v1.3.2 - Local Storage Only</div>
+        <div id="library-list" style="margin-top: 20px;"></div>
+
+        <div class="version-footer">v1.4.0 - Server Sync Available</div>
     </div>
     
     <!-- PLAYER -->
@@ -1552,6 +1552,35 @@
     };
     
     // --- DB & APP ---
+    const ServerApi = {
+        isAvailable: false,
+        async checkStatus() {
+            try {
+                const res = await fetch('/api/status');
+                if (res.ok) this.isAvailable = true;
+            } catch(e) { this.isAvailable = false; }
+            return this.isAvailable;
+        },
+        async syncUp(key, data) {
+            if (!this.isAvailable) return;
+            try {
+                await fetch(`/api/sync/${key}`, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+            } catch(e) { console.warn("Sync failed:", e); }
+        },
+        async syncDown(key) {
+            if (!this.isAvailable) return null;
+            try {
+                const res = await fetch(`/api/sync/${key}`);
+                if (res.ok) return await res.json();
+            } catch(e) { console.warn("Fetch failed:", e); }
+            return null;
+        }
+    };
+
     const DB = {
         db: null,
         async init() {
@@ -1560,49 +1589,62 @@
                 req.onupgradeneeded = (e) => {
                     const db = e.target.result;
                     if (!db.objectStoreNames.contains('metadata')) db.createObjectStore('metadata', { keyPath: 'id' });
-                    if (!db.objectStoreNames.contains('media')) db.createObjectStore('media', { keyPath: 'key' });
                 };
                 req.onsuccess = (e) => { this.db = e.target.result; resolve(); };
                 req.onerror = (e) => reject(e);
             });
         },
         async saveMetadata(book) {
+            // Strip out binary blobs/handles to avoid huge JSON payloads when syncing
+            const safeBook = { ...book };
+            if (safeBook.cover && safeBook.cover.blob) delete safeBook.cover.blob;
+            if (safeBook.handle) delete safeBook.handle;
+            
+            // Sync to server if possible
+            if (ServerApi.isAvailable) {
+                const allBooks = await this.getAllMetadata(true); // Get current clean list
+                const idx = allBooks.findIndex(b => b.id === book.id);
+                if (idx > -1) allBooks[idx] = safeBook; else allBooks.push(safeBook);
+                ServerApi.syncUp('ky_metadata', allBooks);
+            }
+
             const tx = this.db.transaction('metadata', 'readwrite');
             tx.objectStore('metadata').put(book);
             return new Promise(r => tx.oncomplete = r);
         },
         async deleteMetadata(id) {
+            if (ServerApi.isAvailable) {
+                const allBooks = await this.getAllMetadata(true);
+                ServerApi.syncUp('ky_metadata', allBooks.filter(b => b.id !== id));
+            }
             const tx = this.db.transaction('metadata', 'readwrite');
             tx.objectStore('metadata').delete(id);
             return new Promise(r => tx.oncomplete = r);
         },
-        async getAllMetadata() {
-            return new Promise(r => {
+        async getAllMetadata(skipServerCheck = false) {
+            return new Promise(async r => {
+                if (!skipServerCheck && ServerApi.isAvailable) {
+                    const serverData = await ServerApi.syncDown('ky_metadata');
+                    if (serverData && serverData.length > 0) return r(serverData);
+                }
                 const req = this.db.transaction('metadata').objectStore('metadata').getAll();
                 req.onsuccess = () => r(req.result);
             });
-        },
-        async setActiveAudio(blob) {
-            const tx = this.db.transaction('media', 'readwrite');
-            tx.objectStore('media').put({ key: 'active', blob: blob });
-            return new Promise(r => tx.oncomplete = r);
-        },
-        async getActiveAudio() {
-            return new Promise(r => {
-                const req = this.db.transaction('media').objectStore('media').get('active');
-                req.onsuccess = () => r(req.result ? req.result.blob : null);
-            });
-        },
-        async clearActive() {
-            const tx = this.db.transaction('media', 'readwrite');
-            tx.objectStore('media').delete('active');
-            return new Promise(r => tx.oncomplete = r);
         }
     };
     
     const Stats = {
         getDailyStats() { try { return JSON.parse(localStorage.getItem('ky_daily_stats')) || {}; } catch(e) { return {}; } },
-        saveDailyStats(stats) { localStorage.setItem('ky_daily_stats', JSON.stringify(stats)); },
+        saveDailyStats(stats) { 
+            localStorage.setItem('ky_daily_stats', JSON.stringify(stats)); 
+            if(ServerApi.isAvailable) ServerApi.syncUp('ky_daily_stats', stats);
+        },
+        async loadServerStats() {
+            if (ServerApi.isAvailable) {
+                const dbStats = await ServerApi.syncDown('ky_daily_stats');
+                if (dbStats && Object.keys(dbStats).length > 0) localStorage.setItem('ky_daily_stats', JSON.stringify(dbStats));
+            }
+        },
         getTodayKey() { 
             const d = new Date(); 
             return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; 
@@ -1677,7 +1719,16 @@
             });
         },
         async init() {
+            await ServerApi.checkStatus();
             await DB.init();
+            await Stats.loadServerStats(); // Fetch remote stats on boot if connected
+            
+            // Sync mining history
+            if (ServerApi.isAvailable) {
+                const serverMining = await ServerApi.syncDown('ky_mining_history');
+                if (serverMining && serverMining.length > 0) localStorage.setItem('ky_mining_history', JSON.stringify(serverMining));
+            }
+
             TTS.init();
             this.loadSettings();
             this.renderLibrary();
@@ -2211,40 +2262,69 @@
             document.getElementById('view-focus').classList.add('hidden');
             this.updateDashboard();
             
-            const allBooks = await DB.getAllMetadata();
-            allBooks.sort((a, b) => b.lastPlayed - a.lastPlayed);
-            const cachedAudio = await DB.getActiveAudio();
-            const activeId = localStorage.getItem('activeBookId');
-            
             const list = document.getElementById('library-list');
             list.innerHTML = '';
-            
-            allBooks.forEach(book => {
+
+            if (!ServerApi.isAvailable) {
+                list.innerHTML = '<div style="text-align:center; padding:20px; color:#ff5555;">Server is offline. Kikiyomi requires the Node Server to be running.</div>';
+                return;
+            }
+
+            let serverBooks = [];
+            try {
+                const res = await fetch('/api/library');
+                serverBooks = await res.json();
+            } catch(e) {
+                console.error("Failed to fetch server library", e);
+            }
+
+            if (serverBooks.length === 0) {
+                list.innerHTML = '<div style="text-align:center; padding:20px; color:#444;">Library is empty. Drop media files above to upload them to the server.</div>';
+                return;
+            }
+
+            const allBooks = await DB.getAllMetadata();
+            const activeId = localStorage.getItem('activeBookId');
+
+            // Merge server raw books with Ky history metadata
+            const displayBooks = serverBooks.map(sb => {
+                const id = 'server_' + sb.title;
+                const meta = allBooks.find(b => b.id === id) || { 
+                    id, title: sb.title, type: sb.type, isServer: true, isTextOnly: sb.type === 'epub',
+                    progress: 0, duration: 0, lastPlayed: 0 
+                };
+                meta.coverUrl = sb.coverUrl;
+                meta.type = sb.type;
+                return meta;
+            });
+
+            // Sort by most recently played
+            displayBooks.sort((a, b) => (b.lastPlayed || 0) - (a.lastPlayed || 0));
+
+            displayBooks.forEach(book => {
                 const isActive = (book.id === activeId);
-                const isCached = isActive && (book.isTextOnly || cachedAudio);
-                
                 const div = document.createElement('div');
                 div.className = 'lib-item';
-                if (isActive && isCached) div.classList.add('active-book');
+                if (isActive) div.classList.add('active-book');
                 
                 let badges = '';
-                if (book.isTextOnly) badges += '<span class="badge" style="background:rgba(3,218,198,0.2); color:#03dac6; border:1px solid #03dac6;">Reader</span> ';
-                if (isActive && isCached) badges += '<span class="badge playing">Now Playing</span> ';
-                else if (book.handle) badges += '<span class="badge linked">Linked</span> ';
+                if (book.type === 'epub' || book.isTextOnly) badges += '<span class="badge" style="background:rgba(3,218,198,0.2); color:#03dac6; border:1px solid #03dac6;">Reader</span> ';
+                if (isActive) badges += '<span class="badge playing">Now Playing</span> ';
                 
                 const durPct = book.duration > 0 ? (book.progress / book.duration * 100).toFixed(1) : 0;
-                
                 const totalWords = book.totalWords || 0;
                 const readWords = book.readWords || 0;
                 const wordStats = totalWords > 0 ? `<div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">${readWords.toLocaleString()} / ${totalWords.toLocaleString()} words</div>` : '';
 
                 let imgHtml = '<div class="lib-cover" style="display:flex; align-items:center; justify-content:center; background:var(--surface); border:1px solid var(--border); font-size:0.7rem; color:var(--text-muted);">NO COVER</div>';
-                if (book.cover && book.cover.blob) {
+                if (book.coverUrl) {
+                    imgHtml = `<img class="lib-cover" src="${book.coverUrl}">`;
+                } else if (book.cover && book.cover.blob) {
                     const url = URL.createObjectURL(book.cover.blob);
                     imgHtml = `<img class="lib-cover" src="${url}">`;
                 }
 
-                const progressStr = book.isTextOnly 
+                const progressStr = (book.type === 'epub' || book.isTextOnly)
                     ? `Line ${Math.floor(book.progress || 0)} / ${Math.floor(book.duration || 0)}`
                     : `${Utils.fmtTime(book.progress)} / ${Utils.fmtTime(book.duration)}`;
 
@@ -2264,10 +2344,6 @@
                 </div>`;
                 list.appendChild(div);
             });
-            
-            if (list.children.length === 0) {
-                list.innerHTML = '<div style="text-align:center; padding:20px; color:#444;">Library is empty</div>';
-            }
         },
         async showBookmarks() {
             document.getElementById('modal-bookmarks').classList.remove('hidden');
@@ -2391,67 +2467,35 @@
             await this.loadBookFromHistory(bookId, time);
         },
         async handleFiles(files) {
-            this.setLoading(true, "Loading Book...");
-            setTimeout(async () => {
-                let launched = false;
-                try {
-                    let audioFile = null, srtFile = null, jsonFile = null, epubFile = null;
-                    const getExt = (name) => name.split('.').pop().toLowerCase();
-                    for (let f of files) {
-                        const ext = getExt(f.name);
-                        if (['mp3','m4b','aac','mp4','m4a'].includes(ext)) audioFile = f;
-                        if (ext === 'srt') srtFile = f;
-                        if (ext === 'json') jsonFile = f;
-                        if (ext === 'epub') epubFile = f;
-                    }
-                    if (audioFile || epubFile) {
-                        const fileToHash = audioFile || epubFile;
-                        const id = (audioFile ? "b_" : "e_") + Math.abs(this.hashCode(fileToHash.name));
-                        let meta = (await DB.getAllMetadata()).find(b => b.id === id);
-                        if (!meta) {
-                            meta = {
-                                id: id, title: fileToHash.name.replace(/\.(mp3|m4b|aac|mp4|m4a|epub)$/i, ''),
-                                duration: 0, progress: 0, lastPlayed: Date.now(), subs: [], chapters: [], bookmarks: [], cover: null,
-                                totalWords: 0, readWords: 0
-                            };
-                        }
-                        const handleToSave = audioFile?.handle || epubFile?.handle;
-                        if (handleToSave) meta.handle = handleToSave;
-                        if (!meta.bookmarks) meta.bookmarks = []; 
-                        
-                        if (audioFile) {
-                            let parsed = {};
-                            if (getExt(audioFile.name) === 'mp3') parsed = await ID3Parser.parse(audioFile);
-                            else parsed = await M4BParser.parse(audioFile);
-                            
-                            if (parsed.chapters && parsed.chapters.length) meta.chapters = parsed.chapters;
-                            if (parsed.cover) meta.cover = parsed.cover;
-                            if (parsed.tags && parsed.tags.Title && meta.progress === 0) meta.title = parsed.tags.Title;
-                            await DB.setActiveAudio(audioFile);
-                            this.activeAudioBlob = audioFile;
-                        } else if (epubFile) {
-                            const parsed = await EPUBParser.parse(epubFile);
-                            meta = { ...meta, ...parsed };
-                            await DB.clearActive(); // Clean up audio if playing EPUB
-                            this.activeAudioBlob = null;
-                        }
-
-                        if (srtFile) {
-                            meta.subs = await this.parseSrt(srtFile);
-                            meta.totalWords = meta.subs.reduce((acc, s) => acc + this.countWords(s.text), 0);
-                        }
-                        if (jsonFile) meta.chapters = await this.parseJsonChapters(jsonFile);
-                        
-                        await DB.saveMetadata(meta);
-                        localStorage.setItem('activeBookId', id);
-                        this.currentBook = meta;
-                        this.launchPlayer();
-                        launched = true;
-                    } else if (srtFile) { alert("Please drop the audio/epub file too."); }
-                    else { alert("Please drop an Audio File or EPUB."); }
-                } catch (e) { console.error(e); alert("Error processing file."); } 
-                finally { if (!launched) this.setLoading(false); }
-            }, 50);
+            if (!ServerApi.isAvailable) {
+                alert("Server is not available! Cannot upload files.");
+                return;
+            }
+            this.uploadToServer(files);
+        },
+        async uploadToServer(files) {
+            this.setLoading(true, "Uploading to Server...");
+            try {
+                const formData = new FormData();
+                for (let i = 0; i < files.length; i++) {
+                    formData.append('files', files[i]);
+                }
+                
+                const res = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!res.ok) throw new Error("Server rejected upload");
+                
+                this.showToast("Upload Complete", "success");
+                this.renderLibrary(); // Refresh library to show newly uploaded server files
+            } catch(e) {
+                console.error("Upload failed", e);
+                alert("Failed to upload files to server.");
+            } finally {
+                this.setLoading(false);
+            }
         },
         async handleSrtUpload(file) {
             if (!file || !this.currentBook) return;
@@ -2472,46 +2516,82 @@
                 alert("Failed to parse SRT"); 
             }
         },
+        async loadServerBook(title) {
+            this.setLoading(true, "Fetching from Server...");
+            try {
+                const res = await fetch('/api/library');
+                const library = await res.json();
+                const remoteBook = library.find(b => b.title === title);
+                if (!remoteBook) throw new Error("Book not found on server");
+
+                const id = 'server_' + title;
+                let meta = (await DB.getAllMetadata()).find(b => b.id === id);
+                if (!meta) {
+                    meta = {
+                        id: id, title: title, isServer: true,
+                        duration: 0, progress: 0, lastPlayed: Date.now(), subs: [], chapters: [], bookmarks: [],
+                        totalWords: 0, readWords: 0, isTextOnly: remoteBook.type === 'epub'
+                    };
+                }
+
+                // If doing EPUB text, we need to fetch and parse the EPUB arraybuffer 
+                if (remoteBook.type === 'epub') {
+                    const epubRes = await fetch(remoteBook.epubUrl);
+                    const buf = await epubRes.arrayBuffer();
+                    const blob = new Blob([buf]);
+                    blob.name = remoteBook.title + '.epub'; // Mock file name for EPUBParser
+                    
+                    const parsed = await EPUBParser.parse(blob);
+                    meta = { ...meta, ...parsed };
+                    this.activeAudioBlob = null;
+                } else {
+                    // It's Audio - fetch SRT string
+                    if (remoteBook.srtUrl) {
+                        const srtRes = await fetch(remoteBook.srtUrl);
+                        const srtText = await srtRes.text();
+                        /* create a mock file object to trick parseSrt */
+                        const mockFile = { text: async () => srtText };
+                        meta.subs = await this.parseSrt(mockFile);
+                        meta.totalWords = meta.subs.reduce((acc, s) => acc + this.countWords(s.text), 0);
+                    }
+                    this.activeAudioBlob = remoteBook.audioUrl; // Player.js HTTP abstraction handles this
+                }
+
+                await DB.saveMetadata(meta);
+                localStorage.setItem('activeBookId', id);
+                this.currentBook = meta;
+                this.launchPlayer();
+
+            } catch(e) {
+                console.error("Server book load failed:", e);
+                alert("Failed to load server book.");
+            } finally {
+                this.setLoading(false);
+            }
+        },
         async loadBookFromHistory(id, seekTo = null) {
+            this.pendingSeek = seekTo; // Save seek state before async fetch
+            
             const books = await DB.getAllMetadata();
             const book = books.find(b => b.id === id);
-            if(!book) return;
+            
+            if(!book) {
+                // If it's a completely fresh server book with no saved history yet
+                if (id.startsWith('server_')) {
+                    const title = id.replace('server_', '');
+                    await this.loadServerBook(title);
+                    if (this.pendingSeek) { Player.audio.currentTime = this.pendingSeek; this.pendingSeek = null; }
+                }
+                return;
+            }
             
             if(!book.bookmarks) book.bookmarks = [];
-
-            const activeId = localStorage.getItem('activeBookId');
-            if (activeId === book.id) {
-                const blob = await DB.getActiveAudio();
-                if (blob || book.isTextOnly) { 
-                    this.currentBook = book; this.activeAudioBlob = blob || null; 
-                    this.launchPlayer(seekTo); return; 
-                }
+            await this.loadServerBook(book.title);
+            
+            if (this.pendingSeek) {
+                Player.audio.currentTime = this.pendingSeek;
+                this.pendingSeek = null;
             }
-    
-            if (book.handle) {
-                this.setLoading(true, "Opening File...");
-                try {
-                    const perm = await book.handle.queryPermission({ mode: 'read' });
-                    if (perm === 'granted' || (await book.handle.requestPermission({ mode: 'read' })) === 'granted') {
-                        const file = await book.handle.getFile();
-                        file.handle = book.handle;
-                        if (!book.isTextOnly) await DB.setActiveAudio(file);
-                        localStorage.setItem('activeBookId', book.id);
-                        this.currentBook = book;
-                        this.activeAudioBlob = book.isTextOnly ? null : file;
-                        this.launchPlayer(seekTo);
-                        return;
-                    }
-                } catch (e) { 
-                    console.warn(e); 
-                    this.setLoading(false);
-                }
-            }
-    
-            this.pendingBookId = id;
-            this.pendingSeek = seekTo;
-            document.getElementById('req-filename').textContent = book.title + (book.isTextOnly ? " (EPUB File)" : " (Audio File)");
-            document.getElementById('modal-file-req').classList.remove('hidden');
         },
         pendingBookId: null,
         pendingSeek: null,
@@ -2726,7 +2806,10 @@
             this.elTitle.textContent = meta.title;
             this.isPaused = true;
             
-            if (blob) {
+            if (typeof blob === 'string') {
+                this.audio.src = blob; // Remote HTTP Url
+                this.audio.load();
+            } else if (blob) {
                 this.audio.src = URL.createObjectURL(blob);
                 this.audio.load();
             } else {
