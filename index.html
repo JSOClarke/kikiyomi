@@ -135,11 +135,13 @@
         /* --- VIEW: LIBRARY --- */
         #view-library { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; align-items: center; max-width: 800px; margin: 0 auto; width: 100%; }
         
-        .dash-container { width: 100%; display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 25px; }
-        .dash-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 15px; text-align: center; display: flex; flex-direction: column; justify-content: center; }
-        .dash-card-val { font-size: 1.5rem; font-weight: bold; color: var(--primary); font-family: monospace; line-height: 1; }
-        .dash-card-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 8px; }
-        @media (max-width: 600px) { .dash-container { grid-template-columns: repeat(2, 1fr); gap: 10px; } }
+        .dash-container { width: 100%; display: flex; flex-direction: column; gap: 20px; margin-bottom: 25px; }
+        .lang-stats-group { background: var(--surface); padding: 15px; border-radius: var(--radius); border: 1px solid var(--border); }
+        .lang-stats-title { font-size: 1.1rem; font-weight: bold; margin-bottom: 15px; color: var(--primary); text-transform: capitalize; border-bottom: 1px solid var(--border); padding-bottom: 5px; }
+        .stats-grid-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 10px; }
+        .dash-card { background: var(--bg); padding: 15px; border-radius: var(--radius); text-align: center; display: flex; flex-direction: column; justify-content: center; border: 1px solid var(--border); }
+        .dash-card-val { font-size: 1.8rem; font-weight: bold; color: var(--primary); font-family: monospace; line-height: 1; margin-bottom: 5px; }
+        .dash-card-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
 
         .drop-zone { width: 100%; min-height: 120px; border: 2px dashed var(--border); border-radius: var(--radius); display: flex; flex-direction: column; justify-content: center; align-items: center; background: var(--surface); margin-bottom: 20px; transition: all 0.2s; cursor: pointer; flex-shrink: 0; padding: 15px; }
         .drop-zone:hover { border-color: var(--primary); background: var(--surface-hover); }
@@ -503,6 +505,21 @@
             font-style: italic;
         }
 
+        /* Pomodoro Timer */
+        #pomodoro-widget { position: fixed; bottom: 20px; left: 20px; background: var(--surface); border: 2px solid var(--border); border-radius: 30px; padding: 8px 15px; display: flex; align-items: center; gap: 10px; z-index: 9999; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.5); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); user-select: none; }
+        #pomodoro-widget:hover { transform: scale(1.05) translateY(-2px); border-color: rgba(255, 255, 255, 0.2); }
+        #pomodoro-widget:active { transform: scale(0.95); }
+        #pomodoro-icon { font-size: 1.2rem; filter: grayscale(1); transition: filter 0.3s; }
+        #pomodoro-time { font-family: monospace; font-size: 1.1rem; font-weight: bold; color: var(--text-muted); transition: color 0.3s; min-width: 50px; text-align: center; }
+        
+        #pomodoro-widget.pomo-work { border-color: var(--primary); box-shadow: 0 0 15px rgba(255, 107, 107, 0.3); }
+        #pomodoro-widget.pomo-work #pomodoro-icon { filter: grayscale(0); }
+        #pomodoro-widget.pomo-work #pomodoro-time { color: var(--primary); }
+        
+        #pomodoro-widget.pomo-break { border-color: var(--sec); box-shadow: 0 0 15px rgba(74, 255, 150, 0.3); }
+        #pomodoro-widget.pomo-break #pomodoro-icon { filter: hue-rotate(90deg) grayscale(0); }
+        #pomodoro-widget.pomo-break #pomodoro-time { color: var(--sec); }
+
         /* Reader Mode UI Toggles */
         .mode-reader .volume-row,
         .mode-reader #t-curr,
@@ -516,6 +533,11 @@
     <div id="input-debug">LOGS: ...</div>
     <div id="toast"></div>
     
+    <div id="pomodoro-widget" onclick="Pomodoro.toggle()" oncontextmenu="Pomodoro.reset(event)" title="Left Click: Start Focus | Right Click: Reset">
+        <span id="pomodoro-icon">🍅</span>
+        <span id="pomodoro-time">25:00</span>
+    </div>
+
     <input type="file" id="srt-upload" hidden accept=".srt">
     
     <div id="loading-overlay" class="modal-overlay hidden">
@@ -544,6 +566,18 @@
             <h2 style="margin-top:0; color: var(--primary); margin-bottom: 25px;">Settings</h2>
             
             <div class="setting-section">
+                <div class="setting-section-title">Global Settings</div>
+                <div class="setting-row">
+                    <label>Default Book Language</label>
+                    <select id="opt-default-language" onchange="App.applySettings()">
+                        <option value="ja">Japanese</option>
+                        <option value="en">English</option>
+                        <option value="fr">French</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="setting-section">
                 <div class="setting-section-title">Reader UI</div>
                 <div class="setting-row"><label>Theme</label><select id="opt-theme" onchange="App.applySettings()"><option value="kiku-dark">Kiku Dark</option><option value="kiku-light">Kiku Light</option><option value="matcha">Matcha (Green)</option></select></div>
                 <div class="setting-row"><label>Font Family</label><select id="opt-font" onchange="App.applySettings()"><option value="system-ui, -apple-system, sans-serif">System Sans</option><option value="'Times New Roman', serif">Serif</option><option value="'Hiragino Mincho ProN', 'Yu Mincho', serif">Yu Mincho (JP)</option><option value="'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif">Yu Gothic (JP)</option><option value="'Meiryo', sans-serif">Meiryo (JP)</option><option value="'MS Gothic', monospace">MS Gothic (JP)</option></select></div>
@@ -556,6 +590,14 @@
                 <div class="setting-row"><label>TTS: Voice</label><select id="opt-tts-voice" onchange="App.applySettings()"></select></div>
                 <div class="setting-row"><label>TTS: Speed</label><div class="setting-input-group"><input type="range" id="opt-tts-rate" min="0.5" max="2" step="0.1" value="1.0" oninput="App.applySettings()"><span id="opt-tts-rate-val" style="width:40px; text-align:right; font-family:monospace; color:var(--primary); font-weight:bold;">1.0x</span></div></div>
                 <div class="setting-row"><label>TTS: Auto-play line</label><input type="checkbox" id="opt-tts-auto" onchange="App.applySettings()" style="width:20px; height:20px; accent-color: var(--primary);"></div>
+                <div class="setting-row"><label>WPM Auto-Advance (Text-Only)</label><input type="checkbox" id="opt-wpm-mode" onchange="App.applySettings()" style="width:20px; height:20px; accent-color: var(--primary);"></div>
+                <div class="setting-row"><label>WPM Speed</label><div class="setting-input-group"><input type="range" id="opt-wpm-speed" min="50" max="600" step="10" value="250" oninput="App.applySettings()"><span id="opt-wpm-speed-val" style="width:40px; text-align:right; font-family:monospace; color:var(--primary); font-weight:bold;">250</span></div></div>
+            </div>
+
+            <div class="setting-section">
+                <div class="setting-section-title">Pomodoro Timer</div>
+                <div class="setting-row"><label>Focus Duration (mins)</label><div class="setting-input-group"><input type="number" id="opt-pomo-work" min="1" max="120" value="25" onchange="App.applySettings()" style="width:70px"></div></div>
+                <div class="setting-row"><label>Break Duration (mins)</label><div class="setting-input-group"><input type="number" id="opt-pomo-break" min="1" max="60" value="5" onchange="App.applySettings()" style="width:70px"></div></div>
             </div>
 
             <div class="setting-section">
@@ -564,6 +606,7 @@
                 <div class="setting-row"><label>Anki Picture Field</label><div class="setting-input-group"><input type="text" id="opt-anki-pic-field" value="Picture" onchange="App.applySettings()" style="width:160px"></div></div>
                 <div class="setting-hint">Note: AnkiConnect will <b>append</b> to these fields, not overwrite them.</div>
                 <div class="setting-row"><label>Add Cover Art to Card</label><input type="checkbox" id="opt-anki-add-cover" checked onchange="App.applySettings()" style="width:20px; height:20px; accent-color: var(--primary);"></div>
+                <div class="setting-row"><label>Tag Card with Book Title</label><input type="checkbox" id="opt-anki-add-tag" checked onchange="App.applySettings()" style="width:20px; height:20px; accent-color: var(--primary);"></div>
             </div>
 
             <div class="setting-section">
@@ -683,20 +726,22 @@
             <table class="key-table">
                 <tr><td>Play / Pause</td><td>Space / W &nbsp;·&nbsp; GP: A / Cross</td></tr>
                 <tr><td>Prev / Next Line</td><td>A / D &nbsp;·&nbsp; GP: D-pad ←/→</td></tr>
-                <tr><td>Replay Line</td><td>S / ↓ &nbsp;·&nbsp; GP: D-pad ↓</td></tr>
-                <tr><td>Prev / Next Chapter</td><td>Q / E &nbsp;·&nbsp; GP: L1 / R1 (LB/RB)</td></tr>
+                <tr><td>Replay Line</td><td>↓ &nbsp;·&nbsp; GP: D-pad ↓</td></tr>
+                <tr><td>Prev / Next Chapter</td><td>[ / ] &nbsp;·&nbsp; GP: L1 / R1 (LB/RB)</td></tr>
                 <tr><td>Toggle Focus Mode</td><td>F &nbsp;·&nbsp; GP: Y / Triangle</td></tr>
                 <tr><td>Anki Integration</td><td>C &nbsp;·&nbsp; GP: Options / Menu</td></tr>
                 <tr><td>Translate Line</td><td>T &nbsp;·&nbsp; GP: X / Square</td></tr>
                 <tr><td>Read Aloud (TTS)</td><td>R &nbsp;·&nbsp; GP: Select / Share</td></tr>
-                <tr><td>Enter Word Nav Mode</td><td>N &nbsp;·&nbsp; GP: L2 / LT</td></tr>
+                <tr><td>Copy Active Line</td><td>E</td></tr>
+                <tr><td>Enter Word Nav Mode</td><td>S &nbsp;·&nbsp; GP: L2 / LT</td></tr>
             </table>
 
-            <div class="setting-section-title" style="margin-top:16px; margin-bottom:8px;">Word Navigation Mode <span style="font-weight:normal; font-size:0.8rem; color:var(--text-muted);">(toggle with N / L2)</span></div>
+            <div class="setting-section-title" style="margin-top:16px; margin-bottom:8px;">Word Navigation Mode <span style="font-weight:normal; font-size:0.8rem; color:var(--text-muted);">(toggle with S / L2)</span></div>
             <table class="key-table">
-                <tr><td>Move Word Left / Right</td><td>B / M &nbsp;·&nbsp; GP: D-pad ←/→</td></tr>
+                <tr><td>Move Word Left / Right</td><td>A / D &nbsp;·&nbsp; GP: D-pad ←/→</td></tr>
                 <tr><td>Open Yomitan on Word</td><td>Enter / Space &nbsp;·&nbsp; GP: A / Cross</td></tr>
-                <tr><td>Switch Word/Char Mode</td><td>V &nbsp;&nbsp;·&nbsp; GP: R2 / RT</td></tr>
+                <tr><td>Switch Word/Char Mode</td><td>Q / V &nbsp;&nbsp;·&nbsp; GP: R2 / RT</td></tr>
+                <tr><td>Copy Active Line</td><td>E</td></tr>
                 <tr><td>Anki Integration</td><td>C &nbsp;·&nbsp; GP: Options / Menu</td></tr>
                 <tr><td>Translate Line</td><td>T &nbsp;·&nbsp; GP: X / Square</td></tr>
                 <tr><td>Read Aloud (TTS)</td><td>R &nbsp;·&nbsp; GP: Select / Share</td></tr>
@@ -728,24 +773,7 @@
             <div style="color:#666; font-size:0.9rem; margin-top:5px;">Immersive Audiobook & Reader Player</div>
         </div>
         
-        <div class="dash-container" id="dash-container">
-            <div class="dash-card">
-                <div class="dash-card-val" id="dash-words">0</div>
-                <div class="dash-card-label">Words</div>
-            </div>
-            <div class="dash-card">
-                <div class="dash-card-val" id="dash-chars">0</div>
-                <div class="dash-card-label">Characters</div>
-            </div>
-            <div class="dash-card">
-                <div class="dash-card-val" id="dash-time">0m</div>
-                <div class="dash-card-label">Time</div>
-            </div>
-            <div class="dash-card">
-                <div class="dash-card-val" id="dash-streak">0 🔥</div>
-                <div class="dash-card-label">Streak</div>
-            </div>
-        </div>
+        <div class="dash-container" id="dash-container"></div>
 
         <div class="drop-zone" id="drop-zone">
             <div class="drop-zone-content">
@@ -1357,18 +1385,20 @@
             let currentVoice = App.settings.ttsVoice;
             select.innerHTML = '<option value="">Default Voice</option>';
             
-            // Prioritize Japanese and English
+            const targetLangStr = App.settings.defaultLanguage || 'ja';
             const sortedVoices = [...this.voices].sort((a, b) => {
-                if (a.lang.startsWith('ja') && !b.lang.startsWith('ja')) return -1;
-                if (!a.lang.startsWith('ja') && b.lang.startsWith('ja')) return 1;
+                const aMatch = a.lang.toLowerCase().startsWith(targetLangStr);
+                const bMatch = b.lang.toLowerCase().startsWith(targetLangStr);
+                if (aMatch && !bMatch) return -1;
+                if (!aMatch && bMatch) return 1;
                 return a.name.localeCompare(b.name);
             });
 
-            // If no voice is saved, auto-select the first Japanese voice
+            // If no voice is saved, auto-select the first matching voice
             if (!currentVoice) {
-                const firstJP = sortedVoices.find(v => v.lang.startsWith('ja'));
-                if (firstJP) {
-                    currentVoice = firstJP.voiceURI;
+                const firstHit = sortedVoices.find(v => v.lang.toLowerCase().startsWith(targetLangStr));
+                if (firstHit) {
+                    currentVoice = firstHit.voiceURI;
                     App.settings.ttsVoice = currentVoice;
                     localStorage.setItem('ky_tts_voice', currentVoice);
                 }
@@ -1396,7 +1426,8 @@
             if (this.enabled) window.speechSynthesis.cancel();
         },
         getAudioUrl(text) {
-            return `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=ja&client=tw-ob`;
+            const tl = Player.meta?.language || App.settings.defaultLanguage || 'ja';
+            return `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=${tl}&client=tw-ob`;
         },
         async getAudioDataForAnki(text) {
             // NOTE: Microsoft Edge TTS via wss://speech.platform.bing.com requires an Origin header 
@@ -1548,6 +1579,13 @@
                 note: { id: noteId, fields: { [picField]: imgTag } }
             });
             return filename; // Return stored filename for caching
+        },
+        async addTagsToCard(cardId, tagsString) {
+            const cardInfo = await this.invoke('cardsInfo', { cards: [cardId] });
+            if (!cardInfo || cardInfo.length === 0) return false;
+            const noteId = cardInfo[0].note;
+            await this.invoke('addTags', { notes: [noteId], tags: tagsString });
+            return true;
         }
     };
     
@@ -1601,19 +1639,35 @@
     };
     
     const Stats = {
-        getDailyStats() { try { return JSON.parse(localStorage.getItem('ky_daily_stats')) || {}; } catch(e) { return {}; } },
+        getDailyStats() { 
+            try { 
+                const data = JSON.parse(localStorage.getItem('ky_daily_stats')) || {}; 
+                // Legacy Migration: Convert flat { words, chars, time } structures into { ja: { words, chars, time } }
+                for (const date in data) {
+                    if (data[date] && typeof data[date].words === 'number' && !data[date].ja) {
+                        data[date] = { 'ja': { words: data[date].words, chars: data[date].chars, time: data[date].time } };
+                    }
+                }
+                return data;
+            } catch(e) { return {}; } 
+        },
         saveDailyStats(stats) { localStorage.setItem('ky_daily_stats', JSON.stringify(stats)); },
         getTodayKey() { 
             const d = new Date(); 
             return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; 
         },
-        addProgress(words, chars, msTime) {
+        addProgress(lang, words, chars, msTime) {
             const today = this.getTodayKey();
             const stats = this.getDailyStats();
-            if (!stats[today]) stats[today] = { words: 0, chars: 0, time: 0 };
-            if (words > 0) stats[today].words += words;
-            if (chars > 0) stats[today].chars = (stats[today].chars || 0) + chars;
-            if (msTime > 0) stats[today].time += msTime;
+            if (!stats[today]) stats[today] = {};
+            
+            const locale = (lang || 'ja').substring(0, 2).toLowerCase();
+            if (!stats[today][locale]) stats[today][locale] = { words: 0, chars: 0, time: 0 };
+            
+            if (words > 0) stats[today][locale].words += words;
+            if (chars > 0) stats[today][locale].chars = (stats[today][locale].chars || 0) + chars;
+            if (msTime > 0) stats[today][locale].time += msTime;
+            
             this.saveDailyStats(stats);
             if (!document.getElementById('view-library').classList.contains('hidden')) App.updateDashboard();
         },
@@ -1623,16 +1677,25 @@
             const d = new Date();
             const formatD = (date) => `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
             
+            const hasActivity = (dateStr) => {
+                const dayObj = stats[dateStr];
+                if (!dayObj) return false;
+                for (const lang in dayObj) {
+                    if (dayObj[lang].words > 0 || dayObj[lang].chars > 0 || Math.floor(dayObj[lang].time / 60000) > 0) return true;
+                }
+                return false;
+            };
+
             let checkStr = formatD(d);
             
-            if (!stats[checkStr] || ((stats[checkStr].words || 0) === 0 && (stats[checkStr].chars || 0) === 0 && Math.floor(stats[checkStr].time / 60000) === 0)) {
+            if (!hasActivity(checkStr)) {
                 d.setDate(d.getDate() - 1);
                 checkStr = formatD(d);
-                if (!stats[checkStr] || ((stats[checkStr].words || 0) === 0 && (stats[checkStr].chars || 0) === 0 && Math.floor(stats[checkStr].time / 60000) === 0)) return 0;
+                if (!hasActivity(checkStr)) return 0;
             }
             
             while (true) {
-                if (stats[checkStr] && ((stats[checkStr].words || 0) > 0 || (stats[checkStr].chars || 0) > 0 || Math.floor(stats[checkStr].time / 60000) > 0)) {
+                if (hasActivity(checkStr)) {
                     streak++;
                     d.setDate(d.getDate() - 1);
                     checkStr = formatD(d);
@@ -1644,12 +1707,111 @@
         }
     };
 
+    const Pomodoro = {
+        mode: 'idle', // idle, work, break, paused-work, paused-break
+        timeLeft: 25 * 60,
+        intervalId: null,
+        elWidget: document.getElementById('pomodoro-widget'),
+        elTime: document.getElementById('pomodoro-time'),
+        
+        init() {
+            this.mode = 'idle';
+            this.timeLeft = App.settings.pomodoroWorkTime * 60;
+            this.updateUI();
+        },
+        toggle() {
+            if (this.mode === 'idle' || this.mode === 'paused-work') {
+                this.start('work');
+            } else if (this.mode === 'paused-break') {
+                this.start('break');
+            } else {
+                this.pause();
+            }
+        },
+        start(newMode) {
+            this.mode = newMode;
+            this.updateUI();
+            if (this.intervalId) clearInterval(this.intervalId);
+            this.intervalId = setInterval(() => this.tick(), 1000);
+        },
+        pause() {
+            if (this.mode === 'work') this.mode = 'paused-work';
+            if (this.mode === 'break') this.mode = 'paused-break';
+            clearInterval(this.intervalId);
+            this.intervalId = null;
+            this.updateUI();
+        },
+        reset(e) {
+            if(e) e.preventDefault();
+            clearInterval(this.intervalId);
+            this.intervalId = null;
+            this.init();
+            App.showToast("Pomodoro Reset");
+        },
+        tick() {
+            if (this.timeLeft > 0) {
+                this.timeLeft--;
+                this.updateUI();
+            } else {
+                this.completeSession();
+            }
+        },
+        completeSession() {
+            clearInterval(this.intervalId);
+            this.intervalId = null;
+            
+            if (this.mode === 'work') {
+                App.showToast("Focus session complete! Time for a break.", "success", 10000);
+                this.mode = 'idle'; // Wait for user to start break
+                this.timeLeft = App.settings.pomodoroBreakTime * 60;
+            } else if (this.mode === 'break') {
+                App.showToast("Break over. Let's focus!", "success", 10000);
+                this.mode = 'idle'; // Wait for user to start focus
+                this.timeLeft = App.settings.pomodoroWorkTime * 60;
+            }
+            this.updateUI();
+            
+            // Notification sound
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, ctx.currentTime);
+                osc.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.3);
+            } catch(e) {}
+        },
+        updateUI() {
+            if (!this.elWidget) {
+                this.elWidget = document.getElementById('pomodoro-widget');
+                this.elTime = document.getElementById('pomodoro-time');
+            }
+            if(!this.elWidget) return;
+            
+            const m = Math.floor(this.timeLeft / 60).toString().padStart(2, '0');
+            const s = (this.timeLeft % 60).toString().padStart(2, '0');
+            this.elTime.textContent = `${m}:${s}`;
+            
+            this.elWidget.className = '';
+            if (this.mode === 'work' || this.mode === 'paused-work') this.elWidget.classList.add('pomo-work');
+            if (this.mode === 'break' || this.mode === 'paused-break') this.elWidget.classList.add('pomo-break');
+            
+            if (this.mode.startsWith('paused')) this.elWidget.style.opacity = '0.7';
+            else this.elWidget.style.opacity = '1';
+            
+            if (this.mode === 'idle') {
+                this.elWidget.title = this.timeLeft === App.settings.pomodoroWorkTime * 60 ? "Left Click: Start Focus | Right Click: Reset" : "Left Click: Start Break | Right Click: Reset";
+            }
+        }
+    };
+
     const App = {
         currentBook: null, activeAudioBlob: null,
         words: [], activeWordIndex: 0, navigationActive: false,
         activeCoverFilename: null, // Cached Anki media filename for the current book's cover
         sessionStartTime: null, // To track time spent in current session
-        settings: { font: '', size: 36, fillGap: true, bold: false, focusWidth: 90, activeScale: 1.05, ankiField: 'Sentence Audio', ankiPictureField: 'Picture', ankiAddCover: true, showSubProgress: true, showDebug: false, targetLang: 'en', volume: 1.0, segmentationMode: 'word', epubSplitAtCommas: false, ttsVoice: '', ttsRate: 1.0, ttsAutoPlay: false },
+        settings: { defaultLanguage: 'ja', font: '', size: 36, fillGap: true, bold: false, focusWidth: 90, activeScale: 1.05, ankiField: 'Sentence Audio', ankiPictureField: 'Picture', ankiAddCover: true, ankiAddBookTag: true, showSubProgress: true, showDebug: false, targetLang: 'en', volume: 1.0, segmentationMode: 'word', epubSplitAtCommas: false, ttsVoice: '', ttsRate: 1.0, ttsAutoPlay: false, wpmMode: false, wpmSpeed: 250, pomodoroWorkTime: 25, pomodoroBreakTime: 5 },
         showToast(message, type = 'success', duration = 3000) {
             const toast = document.getElementById('toast');
             toast.textContent = message;
@@ -1819,6 +1981,14 @@
                                 console.warn("Cover attachment failed:", e);
                             }
                         }
+                        
+                        // Attach book title tag
+                        if (App.settings.ankiAddBookTag && App.currentBook?.title) {
+                            try {
+                                const cleanTag = App.currentBook.title.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\uff00-\uff9f\u4e00-\u9faf\u3400-\u4dbf-]/g, '');
+                                if (cleanTag) await AnkiConnect.addTagsToCard(cardId, cleanTag);
+                            } catch(e) { console.warn("Tag attachment failed:", e); }
+                        }
 
                         btnElement.style.color = 'var(--sec)';
                         App.showToast(msg, 'success');
@@ -1916,7 +2086,8 @@
         countWords(text) {
             if (!text) return 0;
             if (window.Intl && Intl.Segmenter) {
-                const segmenter = new Intl.Segmenter('ja', { granularity: 'word' });
+                const tl = Player.meta?.language || App.currentBook?.language || App.settings?.defaultLanguage || 'ja';
+                const segmenter = new Intl.Segmenter(tl, { granularity: 'word' });
                 const segments = segmenter.segment(text);
                 let count = 0;
                 for (const { isWordLike } of segments) if (isWordLike) count++;
@@ -1926,14 +2097,28 @@
         },
         countCharacters(text) {
             if (!text) return 0;
-            // Remove spaces, punctuation, etc. to get true Japanese character count
+            
+            const tl = Player.meta?.language || App.currentBook?.language || App.settings?.defaultLanguage || 'ja';
+            const asianLangs = ['ja', 'zh', 'ko'];
+            if (!asianLangs.some(lang => tl.toLowerCase().startsWith(lang))) return 0;
+
+            // Remove spaces, punctuation, etc. to get true Japanese/Asian character count
             const cleanText = text.replace(/[\s\u3000、。！？\.\,\;\:\!\?\-\(\)\[\]\{\}\"\'\「\」\『\』]/g, '');
             return [...cleanText].length; // Supports surrogate pairs safely
         },
         segmentText(allText) {
             const subs = [];
-            const segmenter = new Intl.Segmenter('ja', { granularity: 'sentence' });
-            const segments = segmenter.segment(allText);
+            const tl = Player.meta?.language || App.currentBook?.language || App.settings?.defaultLanguage || 'ja';
+            
+            let normalizedText = allText;
+            // Aggressive fallback for non-Japanese languages where a space might be missing after a sentence terminator
+            // e.g., "Hello.World" -> "Hello. World"
+            if (!tl.startsWith('ja')) {
+                normalizedText = normalizedText.replace(/([.?!])([a-zA-Z0-9])/g, '$1 $2');
+            }
+            
+            const segmenter = new Intl.Segmenter(tl, { granularity: 'sentence' });
+            const segments = segmenter.segment(normalizedText);
             let time = 0;
             for (const { segment } of segments) {
                 const text = segment.trim();
@@ -1978,7 +2163,8 @@
             this.currentBook.progress = Math.min(Player.audio.currentTime, duration);
             
             // Re-calculate word counts
-            const wordSegmenter = new Intl.Segmenter('ja', { granularity: 'word' });
+            const tl = this.currentBook?.language || App.settings?.defaultLanguage || 'ja';
+            const wordSegmenter = new Intl.Segmenter(tl, { granularity: 'word' });
             const wordSegments = wordSegmenter.segment(allText);
             let wordCount = 0;
             for (const { isWordLike } of wordSegments) if (isWordLike) wordCount++;
@@ -2050,6 +2236,7 @@
             this.settings.ankiField = localStorage.getItem('ky_anki_field') || "SentenceAudio";
             this.settings.ankiPictureField = localStorage.getItem('ky_anki_pic_field') || "Picture";
             this.settings.ankiAddCover = localStorage.getItem('ky_anki_add_cover') !== "false";
+            this.settings.ankiAddBookTag = localStorage.getItem('ky_anki_add_tag') !== "false";
             this.settings.showSubProgress = localStorage.getItem('ky_sub_progress') !== "false";
             this.settings.showDebug = localStorage.getItem('ky_debug') === "true";
             this.settings.targetLang = localStorage.getItem('ky_lang') || "en";
@@ -2059,6 +2246,11 @@
             this.settings.ttsVoice = localStorage.getItem('ky_tts_voice') || '';
             this.settings.ttsRate = parseFloat(localStorage.getItem('ky_tts_rate') || "1.0");
             this.settings.ttsAutoPlay = localStorage.getItem('ky_tts_auto') === "true";
+            this.settings.wpmMode = localStorage.getItem('ky_wpm_mode') === "true";
+            this.settings.wpmSpeed = parseInt(localStorage.getItem('ky_wpm_speed') || "250");
+            this.settings.defaultLanguage = localStorage.getItem('ky_default_lang') || "ja";
+            this.settings.pomodoroWorkTime = parseInt(localStorage.getItem('ky_pomo_work') || "25");
+            this.settings.pomodoroBreakTime = parseInt(localStorage.getItem('ky_pomo_break') || "5");
     
             document.getElementById('opt-theme').value = this.settings.theme;
             document.getElementById('opt-font').value = this.settings.font;
@@ -2070,6 +2262,7 @@
             document.getElementById('opt-anki-field').value = this.settings.ankiField;
             document.getElementById('opt-anki-pic-field').value = this.settings.ankiPictureField;
             document.getElementById('opt-anki-add-cover').checked = this.settings.ankiAddCover;
+            document.getElementById('opt-anki-add-tag').checked = this.settings.ankiAddBookTag;
             document.getElementById('opt-sub-progress').checked = this.settings.showSubProgress;
             document.getElementById('opt-debug').checked = this.settings.showDebug;
             document.getElementById('opt-lang').value = this.settings.targetLang;
@@ -2078,11 +2271,18 @@
             document.getElementById('opt-tts-rate').value = this.settings.ttsRate || 1.0;
             document.getElementById('opt-tts-rate-val').innerText = (this.settings.ttsRate || 1.0).toFixed(1) + 'x';
             document.getElementById('opt-tts-auto').checked = this.settings.ttsAutoPlay;
+            document.getElementById('opt-wpm-mode').checked = this.settings.wpmMode;
+            document.getElementById('opt-wpm-speed').value = this.settings.wpmSpeed || 250;
+            document.getElementById('opt-wpm-speed-val').innerText = this.settings.wpmSpeed || 250;
+            document.getElementById('opt-default-language').value = this.settings.defaultLanguage;
+            document.getElementById('opt-pomo-work').value = this.settings.pomodoroWorkTime;
+            document.getElementById('opt-pomo-break').value = this.settings.pomodoroBreakTime;
             const volSlider = document.getElementById('volume-slider');
             if (volSlider) volSlider.value = this.settings.volume;
             
             this.updateNavIndicator();
             this.applySettings(true);
+            Pomodoro.init();
         },
         applySettings(isLoad=false) {
             const oldEpubSplit = this.settings.epubSplitAtCommas;
@@ -2097,6 +2297,7 @@
                 this.settings.ankiField = document.getElementById('opt-anki-field').value.trim();
                 this.settings.ankiPictureField = document.getElementById('opt-anki-pic-field').value.trim();
                 this.settings.ankiAddCover = document.getElementById('opt-anki-add-cover').checked;
+                this.settings.ankiAddBookTag = document.getElementById('opt-anki-add-tag').checked;
                 this.settings.showSubProgress = document.getElementById('opt-sub-progress').checked;
                 this.settings.showDebug = document.getElementById('opt-debug').checked;
                 this.settings.epubSplitAtCommas = document.getElementById('opt-epub-split').checked;
@@ -2104,6 +2305,12 @@
                 this.settings.ttsRate = parseFloat(document.getElementById('opt-tts-rate').value);
                 document.getElementById('opt-tts-rate-val').innerText = this.settings.ttsRate.toFixed(1) + 'x';
                 this.settings.ttsAutoPlay = document.getElementById('opt-tts-auto').checked;
+                this.settings.wpmMode = document.getElementById('opt-wpm-mode').checked;
+                this.settings.wpmSpeed = parseInt(document.getElementById('opt-wpm-speed').value);
+                document.getElementById('opt-wpm-speed-val').innerText = this.settings.wpmSpeed;
+                this.settings.defaultLanguage = document.getElementById('opt-default-language').value;
+                this.settings.pomodoroWorkTime = parseInt(document.getElementById('opt-pomo-work').value);
+                this.settings.pomodoroBreakTime = parseInt(document.getElementById('opt-pomo-break').value);
                 
                 const epubSplitChanged = oldEpubSplit !== this.settings.epubSplitAtCommas;
                 const langChanged = this.settings.targetLang !== document.getElementById('opt-lang').value;
@@ -2123,6 +2330,7 @@
                 localStorage.setItem('ky_anki_field', this.settings.ankiField);
                 localStorage.setItem('ky_anki_pic_field', this.settings.ankiPictureField);
                 localStorage.setItem('ky_anki_add_cover', this.settings.ankiAddCover);
+                localStorage.setItem('ky_anki_add_tag', this.settings.ankiAddBookTag);
                 localStorage.setItem('ky_sub_progress', this.settings.showSubProgress);
                 localStorage.setItem('ky_debug', this.settings.showDebug);
                 localStorage.setItem('ky_lang', this.settings.targetLang);
@@ -2132,6 +2340,14 @@
                 localStorage.setItem('ky_tts_voice', this.settings.ttsVoice);
                 localStorage.setItem('ky_tts_rate', this.settings.ttsRate);
                 localStorage.setItem('ky_tts_auto', this.settings.ttsAutoPlay);
+                localStorage.setItem('ky_wpm_mode', this.settings.wpmMode);
+                localStorage.setItem('ky_wpm_speed', this.settings.wpmSpeed);
+                localStorage.setItem('ky_default_lang', this.settings.defaultLanguage);
+                localStorage.setItem('ky_pomo_work', this.settings.pomodoroWorkTime);
+                localStorage.setItem('ky_pomo_break', this.settings.pomodoroBreakTime);
+                
+                if (Player.meta) Player.updateBtn();
+                if (Pomodoro.mode === 'idle') Pomodoro.init(); // Live-update timer text if idle
 
                 if (langChanged && Player.subs) {
                     Player.subs.forEach((s, idx) => {
@@ -2197,13 +2413,82 @@
         toggleModal(id) { document.getElementById(id).classList.toggle('hidden'); },
         updateDashboard() {
             const today = Stats.getTodayKey();
-            const stats = Stats.getDailyStats()[today] || { words: 0, chars: 0, time: 0 };
+            const stats = Stats.getDailyStats()[today] || {};
             const streak = Stats.getStreak();
             
-            document.getElementById('dash-words').innerText = Math.floor(stats.words || 0).toLocaleString();
-            document.getElementById('dash-chars').innerText = Math.floor(stats.chars || 0).toLocaleString();
-            document.getElementById('dash-time').innerText = Math.floor(stats.time / 60000) + 'm';
-            document.getElementById('dash-streak').innerText = streak + (streak > 0 ? ' 🔥' : ' 🧊');
+            const container = document.getElementById('dash-container');
+            container.innerHTML = '';
+            
+            // Asian languages keep character counters. Others do not.
+            const asianLangs = ['ja', 'zh', 'ko'];
+            const langNames = { 'ja': 'Japanese', 'en': 'English', 'fr': 'French', 'es': 'Spanish', 'de': 'German', 'it': 'Italian', 'pt': 'Portuguese', 'ru': 'Russian', 'ko': 'Korean', 'zh': 'Chinese' };
+            
+            const renderCard = (val, label) => `
+                <div class="dash-card">
+                    <div class="dash-card-val">${val}</div>
+                    <div class="dash-card-label">${label}</div>
+                </div>`;
+
+            let hasData = false;
+            
+            for (const lang in stats) {
+                const ls = stats[lang];
+                if ((ls.words || 0) === 0 && (ls.chars || 0) === 0 && Math.floor((ls.time || 0) / 60000) === 0) continue;
+                hasData = true;
+                
+                const isAsian = asianLangs.includes(lang);
+                const title = langNames[lang] || lang.toUpperCase();
+                
+                // Construct Grid
+                let html = `<div class="lang-stats-group"><div class="lang-stats-title">${title} Reading</div><div class="stats-grid-row">`;
+                
+                html += renderCard(Math.floor(ls.words || 0).toLocaleString(), 'Words');
+                if (isAsian) html += renderCard(Math.floor(ls.chars || 0).toLocaleString(), 'Characters');
+                html += renderCard(Math.floor((ls.time || 0) / 60000) + 'm', 'Time');
+                
+                html += `</div></div>`;
+                container.innerHTML += html;
+            }
+
+            // Streak card remains global outside the loop
+            if (hasData || streak > 0) {
+                container.innerHTML += `
+                    <div class="lang-stats-group" style="border-color: var(--warn);">
+                        <div class="stats-grid-row">
+                            ${renderCard(streak + (streak > 0 ? ' 🔥' : ' 🧊'), 'Current Streak')}
+                        </div>
+                    </div>`;
+            } else {
+                 container.innerHTML = `
+                    <div class="lang-stats-group">
+                        <div class="stats-grid-row">
+                            ${renderCard('0', 'Words')}
+                            ${renderCard('0m', 'Time')}
+                            ${renderCard('0 🧊', 'Streak')}
+                        </div>
+                    </div>`;
+            }
+        },
+        async setBookLanguage(id, event) {
+            event.stopPropagation();
+            const books = await DB.getAllMetadata();
+            const book = books.find(b => b.id === id);
+            if (!book) return;
+            
+            const currentLang = book.language || this.settings.defaultLanguage;
+            const newLang = prompt(`Enter language code for "${book.title}"\n(e.g., 'ja', 'en', 'fr')\nCurrent:`, currentLang);
+            if (newLang && newLang !== currentLang) {
+                book.language = newLang.toLowerCase().trim();
+                await DB.saveMetadata(book);
+                this.renderLibrary();
+                this.showToast(`Language for this book set to ${book.language}`);
+                
+                // Keep active context updated if we modified the currently playing book
+                if (this.currentBook && this.currentBook.id === book.id) {
+                    this.currentBook.language = book.language;
+                    if (Player.meta) Player.meta.language = book.language;
+                }
+            }
         },
         async renderLibrary() {
             document.getElementById('view-library').classList.remove('hidden');
@@ -2259,6 +2544,7 @@
                     </div>
                 </div>
                 <div style="display:flex; height:100%;">
+                    <button class="del-btn" title="Set Language" onclick="App.setBookLanguage('${book.id}', event)" style="padding:0 10px; font-size:1rem;">🌐</button>
                     <button class="del-btn" title="Set Cover" onclick="DataManager.setManualCover('${book.id}', event)" style="padding:0 10px; font-size:1rem;">🖼️</button>
                     <button class="del-btn" title="Delete History" onclick="App.deleteBook('${book.id}', event)">×</button>
                 </div>`;
@@ -2805,7 +3091,23 @@
                 emptyZone.addEventListener('dragover', e => { e.preventDefault(); emptyZone.style.borderColor = 'var(--primary)'; });
                 emptyZone.addEventListener('dragleave', e => { e.preventDefault(); emptyZone.style.borderColor = '#333'; });
                 emptyZone.addEventListener('drop', e => { e.preventDefault(); e.stopPropagation(); if(e.dataTransfer.files.length > 0) App.handleSrtUpload(e.dataTransfer.files[0]); });
-                return; 
+            }
+            
+            // Add mouse wheel listener for fast subtitle navigation
+            if (!this.elSubList.dataset.wheelBound) {
+                this.elSubList.addEventListener('wheel', (e) => {
+                    // Prevent default scrolling so we don't double-scroll
+                    e.preventDefault();
+                    
+                    // Simple debounce
+                    if (this.wheelDebounce) return;
+                    this.wheelDebounce = true;
+                    setTimeout(() => this.wheelDebounce = false, 150); // 150ms cooldown
+
+                    if (e.deltaY < 0) this.prevSub();
+                    else if (e.deltaY > 0) this.nextSub();
+                }, { passive: false });
+                this.elSubList.dataset.wheelBound = "true";
             }
             
             const frag = reuse ? null : document.createDocumentFragment();
@@ -2814,7 +3116,8 @@
             // Re-initialize segmenter and words array
             App.words = [];
             const granularity = App.settings.segmentationMode === 'word' ? 'word' : 'grapheme';
-            const segmenter = window.Intl && window.Intl.Segmenter ? new Intl.Segmenter('ja', { granularity: granularity }) : null;
+            const targetLangStr = this.meta?.language || App.settings?.defaultLanguage || 'ja';
+            const segmenter = window.Intl && window.Intl.Segmenter ? new Intl.Segmenter(targetLangStr, { granularity: granularity }) : null;
 
             this.subs.forEach((s, i) => {
                 let li, txtCol;
@@ -2917,6 +3220,12 @@
                 if (segmenter) {
                     const segments = segmenter.segment(s.text);
                     for (const { segment } of segments) {
+                        if (!segment.trim()) {
+                            // Render pure whitespace as a standard text node so it doesn't collapse
+                            // and doesn't become interactive in word navigation.
+                            txtCol.appendChild(document.createTextNode(segment));
+                            continue;
+                        }
                         const span = document.createElement('span');
                         span.className = 'word';
                         span.textContent = segment;
@@ -3035,9 +3344,7 @@
                     if(el) { el.classList.add('active'); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); text = subs[idx].text; }
                     this.elFocusAnkiBtn?.classList.remove('hidden');
                     if (this.meta.isTextOnly && !this.isPaused) {
-                        TTS.speak(text, () => {
-                            if (!this.isPaused) this.nextSub();
-                        });
+                        this.triggerAutoAdvance();
                     }
                 } else {
                     this.elFocusAnkiBtn?.classList.add('hidden');
@@ -3067,21 +3374,47 @@
                 }
             }
         },
-        pause() { if(this.meta.isTextOnly) { this.isPaused = true; this.updateBtn(); this.save(); } else this.audio.pause(); },
+        pause() { 
+            if(this.meta && this.meta.isTextOnly) { 
+                this.isPaused = true; 
+                clearTimeout(this.wpmTimer);
+                this.updateBtn(); 
+                this.save(); 
+            } else this.audio.pause(); 
+        },
+        wpmTimer: null,
+        triggerAutoAdvance() {
+            clearTimeout(this.wpmTimer);
+            if (this.activeIndex === -1 || this.isPaused || !this.meta.isTextOnly) return;
+            
+            const text = this.subs[this.activeIndex].text;
+            if (App.settings.ttsAutoPlay) {
+                TTS.speak(text, () => {
+                    if (!this.isPaused) this.nextSub();
+                });
+            } else if (App.settings.wpmMode) {
+                const words = App.countWords(text) || 1;
+                const ms = (words / App.settings.wpmSpeed) * 60 * 1000;
+                // Add a small 250ms buffer to match natural breathing between lines
+                this.wpmTimer = setTimeout(() => {
+                    if (!this.isPaused) this.nextSub();
+                }, ms + 250); 
+            }
+        },
         togglePlay() {
-            if (this.meta.isTextOnly) {
+            if (this.meta && this.meta.isTextOnly) {
+                if (!App.settings.ttsAutoPlay && !App.settings.wpmMode) return; // Completely disabled
                 this.isPaused = !this.isPaused;
                 this.updateBtn();
                 if (!this.isPaused) { 
                     this.lastAnimTime = Date.now(); 
                     this.animate(); 
                     if (this.activeIndex !== -1) {
-                        TTS.speak(this.subs[this.activeIndex].text, () => {
-                            if (!this.isPaused) this.nextSub();
-                        });
+                        this.triggerAutoAdvance();
                     }
                 }
                 else {
+                    clearTimeout(this.wpmTimer);
                     this.save();
                     TTS.stop();
                 }
@@ -3136,11 +3469,25 @@
             const t = this.audio.currentTime; let target = -1;
             for(let i=0; i<chaps.length; i++) if(this.getChapTime(chaps[i]) > t) { target = i; break; }
             if (target > -1) this.audio.currentTime = this.getChapTime(chaps[target]);
-            if (this.meta.isTextOnly) { this.syncSub(); this.updateProgressBars(); }
+            if (this.meta && this.meta.isTextOnly) { this.syncSub(); this.updateProgressBars(); }
         },
         updateBtn() { 
+            if (!this.meta) return;
             const paused = this.meta.isTextOnly ? this.isPaused : this.audio.paused;
-            this.elBtnPlay.textContent = paused ? "▶" : "❚❚"; 
+            this.elBtnPlay.innerHTML = paused ? `<i class="fa fa-play"></i> ▶` : `<i class="fa fa-pause"></i> ❚❚`; 
+            
+            // Disable if Text Only and neither auto mode is active
+            if (this.meta.isTextOnly && !App.settings.ttsAutoPlay && !App.settings.wpmMode) {
+                this.elBtnPlay.disabled = true;
+                this.elBtnPlay.style.opacity = '0.4';
+                this.elBtnPlay.style.cursor = 'not-allowed';
+                this.elBtnPlay.title = "Enable TTS or WPM Auto-Advance in settings to play";
+            } else {
+                this.elBtnPlay.disabled = false;
+                this.elBtnPlay.style.opacity = '1';
+                this.elBtnPlay.style.cursor = 'pointer';
+                this.elBtnPlay.title = paused ? "Play" : "Pause";
+            }
         },
         save() { 
         if (!this.meta) return; 
@@ -3226,8 +3573,21 @@
                 
                 if (isPlayerHidden) return;
                 
+                // Global Shortcuts
+                if (k === 'KeyE' || key === 'e') {
+                    e.preventDefault();
+                    const activeIdx = App.navigationActive 
+                        ? (App.words[App.activeWordIndex || 0]?.subIndex ?? Player.activeIndex) 
+                        : Player.activeIndex;
+                    if (activeIdx !== -1) {
+                        Utils.copyToClipboard(Player.subs[activeIdx].text);
+                        App.showToast("Copied to clipboard!");
+                    }
+                    return;
+                }
+                
                 // Toggle Navigation Mode
-                if (k === 'KeyN' || key === 'n') {
+                if (k === 'KeyS' || key === 's') {
                     App.navigationActive = !App.navigationActive;
                     if (App.navigationActive) {
                         Player.pause();
@@ -3243,20 +3603,20 @@
                 }
 
                 if (App.navigationActive) {
-                    if (k === 'ArrowLeft' || key === 'arrowleft' || key === 'b') { e.preventDefault(); App.moveWordLeft(); }
-                    else if (k === 'ArrowRight' || key === 'arrowright' || key === 'm') { e.preventDefault(); App.moveWordRight(); }
+                    if (k === 'ArrowLeft' || key === 'arrowleft' || key === 'b' || key === 'a') { e.preventDefault(); App.moveWordLeft(); }
+                    else if (k === 'ArrowRight' || key === 'arrowright' || key === 'm' || key === 'd') { e.preventDefault(); App.moveWordRight(); }
                     else if (k === 'Enter' || key === 'enter' || key === ' ') { e.preventDefault(); App.triggerYomitan(); }
                     else if (k === 'KeyC' || key === 'c') { e.preventDefault(); App.triggerAnkiCard(); }
-                    else if (k === 'KeyV' || key === 'v') { e.preventDefault(); App.toggleSegmentationMode(); }
+                    else if (k === 'KeyV' || key === 'v' || key === 'q') { e.preventDefault(); App.toggleSegmentationMode(); }
                     return; // Interdict normal playback controls
                 }
 
                 if(key === ' ' || key === 'w') { e.preventDefault(); Player.togglePlay(); }
                 else if(k==='KeyA' || key==='arrowleft') Player.prevSub();
                 else if(k==='KeyD' || key==='arrowright') Player.nextSub();
-                else if(k==='KeyS' || key==='arrowdown') { e.preventDefault(); Player.replaySub(); }
-                else if(key === 'q') Player.prevChap();
-                else if(key === 'e') Player.nextChap();
+                else if(key==='arrowdown') { e.preventDefault(); Player.replaySub(); }
+                else if(key === '[') Player.prevChap();
+                else if(key === ']') Player.nextChap();
                 else if(key === 'f') App.toggleFocusMode();
                 else if(k==='KeyC' || key==='c') App.enhanceAnkiCard();
                 else if(k==='KeyT' || key==='t') {
